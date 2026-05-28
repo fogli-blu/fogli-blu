@@ -1,6 +1,8 @@
 // Global state variables
 let selectedCustomer = null;
 let articlesList = [];
+let warehousesList = [];
+let selectedProductForQty = null;
 
 // DOM Elements
 const ddtForm = document.getElementById('ddt-form');
@@ -126,6 +128,7 @@ async function checkConnectivity() {
 
 // Initial check
 checkConnectivity();
+loadWarehouses();
 
 // ----------------------------------------------------
 // AUTOCOMPLETE CLIENTE
@@ -216,13 +219,15 @@ document.addEventListener('click', (e) => {
 // ARTICLES STATE MANAGEMENT
 // ----------------------------------------------------
 
-function addArticle(quantita, descrizione, idVat = '22') {
+function addArticle(quantita, descrizione, idVat = '22', idMaterial = null) {
   const article = {
     id: Date.now() + Math.random().toString(36).substr(2, 5),
     quantity: quantita,
     description: descrizione,
     idVat: idVat,
-    idPosType: 1
+    idPosType: 1,
+    idMaterial: idMaterial,
+    idWarehouse: null
   };
   articlesList.push(article);
   renderArticles();
@@ -246,6 +251,13 @@ function updateArticleVat(id, vat) {
   const art = articlesList.find(a => a.id === id);
   if (art) {
     art.idVat = vat;
+  }
+}
+
+function updateArticleWarehouse(id, whId) {
+  const art = articlesList.find(a => a.id === id);
+  if (art) {
+    art.idWarehouse = whId || null;
   }
 }
 
@@ -290,6 +302,15 @@ function renderArticles() {
           </select>
         </div>
       </div>
+      <div class="article-warehouse-row">
+        <div class="article-field wh-field-wrap">
+          <span>🏭</span>
+          <select class="wh-field" data-id="${a.id}">
+            <option value="">— Magazzino —</option>
+            ${warehousesList.map(w => `<option value="${w.id}" ${a.idWarehouse === String(w.id) ? 'selected' : ''}>${w.description || w.id}</option>`).join('')}
+          </select>
+        </div>
+      </div>
     `;
     
     // Attach live listeners
@@ -298,6 +319,9 @@ function renderArticles() {
     });
     row.querySelector('.vat-field').addEventListener('change', (e) => {
       updateArticleVat(a.id, e.target.value);
+    });
+    row.querySelector('.wh-field').addEventListener('change', (e) => {
+      updateArticleWarehouse(a.id, e.target.value);
     });
     row.querySelector('.delete-article-btn').addEventListener('click', () => {
       removeArticle(a.id);
@@ -357,6 +381,13 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     
     if (!finalSpeech || finalSpeech === 'Ascolto in corso...') {
       addLog('warning', 'Nessuna dicitura vocale rilevata o registrazione interrotta.');
+      return;
+    }
+    
+    // Keyword detection: "categoria" → open category browser
+    if (activeField === 'articolo' && /\bcategor/i.test(finalSpeech)) {
+      addLog('info', '🗂️ Parola chiave "categoria" rilevata → apertura browser categorie.');
+      openCategoryBrowser();
       return;
     }
     
@@ -482,11 +513,12 @@ async function submitDDT(isSimulation = false) {
     idBu: "U1",
     rows: articlesList.map((a, index) => ({
       idPos: index + 1,
-      idMaterial: null, // text-only generic items
+      idMaterial: a.idMaterial || null,
       idPosType: 1,
       quantity: a.quantity,
       idVat: a.idVat,
-      description: a.description
+      description: a.description,
+      ...(a.idWarehouse ? { idWarehouse: a.idWarehouse } : {})
     })),
     deliveryData: {
       reason: causale,
@@ -547,6 +579,229 @@ function resetForm() {
 
 simulaBtn.addEventListener('click', () => submitDDT(true));
 inviaBtn.addEventListener('click', () => submitDDT(false));
+
+// ====================================================
+// LOAD WAREHOUSES
+// ====================================================
+
+async function loadWarehouses() {
+  try {
+    const res = await fetch('/api/warehouses');
+    if (res.ok) {
+      const data = await res.json();
+      warehousesList = Array.isArray(data) ? data : [];
+      if (warehousesList.length > 0) {
+        addLog('info', `🏭 Magazzini caricati: ${warehousesList.length} disponibili.`);
+      }
+    }
+  } catch (e) {
+    addLog('warning', `Impossibile caricare i magazzini: ${e.message}`);
+  }
+}
+
+// ====================================================
+// CATEGORY BROWSER
+// ====================================================
+
+const catbrowserOverlay = document.getElementById('catbrowser-overlay');
+const catbrowserBody = document.getElementById('catbrowser-body');
+const catbrowserTitle = document.getElementById('catbrowser-title');
+const catbrowserBackBtn = document.getElementById('catbrowser-back-btn');
+const catbrowserCloseBtn = document.getElementById('catbrowser-close-btn');
+
+let _categoriesCache = null;
+
+document.getElementById('cat-browse-btn').addEventListener('click', openCategoryBrowser);
+catbrowserCloseBtn.addEventListener('click', closeCategoryBrowser);
+catbrowserOverlay.addEventListener('click', (e) => { if (e.target === catbrowserOverlay) closeCategoryBrowser(); });
+
+async function openCategoryBrowser() {
+  catbrowserOverlay.classList.add('active');
+  catbrowserBackBtn.classList.add('hidden');
+  catbrowserTitle.textContent = 'Scegli Categoria';
+  catbrowserBody.innerHTML = '<div class="catbrowser-loading"><div class="spinner"></div>Caricamento categorie...</div>';
+
+  try {
+    if (!_categoriesCache) {
+      const res = await fetch('/api/categories');
+      if (!res.ok) throw new Error(`Errore ${res.status}`);
+      _categoriesCache = await res.json();
+    }
+    renderCategoryGrid(_categoriesCache);
+  } catch (e) {
+    catbrowserBody.innerHTML = `<div class="catbrowser-error">Impossibile caricare le categorie.<br><small>${e.message}</small></div>`;
+    addLog('error', `Errore categorie: ${e.message}`);
+  }
+}
+
+function closeCategoryBrowser() {
+  catbrowserOverlay.classList.remove('active');
+}
+
+function renderCategoryGrid(categories) {
+  catbrowserTitle.textContent = 'Scegli Categoria';
+  catbrowserBackBtn.classList.add('hidden');
+  catbrowserBody.innerHTML = '';
+
+  if (!categories || categories.length === 0) {
+    catbrowserBody.innerHTML = '<div class="catbrowser-empty">🗂️ Nessuna categoria trovata.</div>';
+    return;
+  }
+
+  const ICONS = ['📦', '🪵', '🧱', '🔩', '🪣', '🛠️', '🏷️', '📋', '🧩', '🔧', '⚙️', '🏗️'];
+  const grid = document.createElement('div');
+  grid.className = 'cat-grid';
+
+  categories.forEach((cat, i) => {
+    const name = cat.description || cat.name || String(cat.id);
+    const card = document.createElement('div');
+    card.className = 'cat-card';
+    card.innerHTML = `<div class="cat-icon">${ICONS[i % ICONS.length]}</div><div class="cat-name">${name}</div>`;
+    card.addEventListener('click', () => loadProductsByCategory(cat));
+    grid.appendChild(card);
+  });
+
+  catbrowserBody.appendChild(grid);
+}
+
+async function loadProductsByCategory(cat) {
+  const catName = cat.description || cat.name || String(cat.id);
+  catbrowserTitle.textContent = catName;
+  catbrowserBackBtn.classList.remove('hidden');
+  catbrowserBackBtn.onclick = () => renderCategoryGrid(_categoriesCache);
+  catbrowserBody.innerHTML = '<div class="catbrowser-loading"><div class="spinner"></div>Caricamento prodotti...</div>';
+  addLog('info', `Caricamento prodotti categoria: "${catName}"...`);
+
+  try {
+    const res = await fetch(`/api/products?idCategory=${encodeURIComponent(cat.id)}`);
+    if (!res.ok) throw new Error(`Errore ${res.status}`);
+    const products = await res.json();
+    renderProductList(products);
+    addLog('success', `Prodotti: ${products.length} trovati in "${catName}".`);
+  } catch (e) {
+    catbrowserBody.innerHTML = `<div class="catbrowser-error">Impossibile caricare i prodotti.<br><small>${e.message}</small></div>`;
+    addLog('error', `Errore prodotti: ${e.message}`);
+  }
+}
+
+function renderProductList(products) {
+  catbrowserBody.innerHTML = '';
+  if (!products || products.length === 0) {
+    catbrowserBody.innerHTML = '<div class="catbrowser-empty">Nessun prodotto in questa categoria.</div>';
+    return;
+  }
+  const list = document.createElement('div');
+  list.className = 'prod-list';
+  products.forEach(prod => {
+    const name = prod.description || prod.name || String(prod.id);
+    const code = prod.code || prod.sku || '';
+    const item = document.createElement('div');
+    item.className = 'prod-item';
+    item.innerHTML = `
+      <div class="prod-info">
+        <div class="prod-name">${name}</div>
+        ${code ? `<div class="prod-code">${code}</div>` : ''}
+      </div>
+      <button class="prod-add-btn" title="Aggiungi">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+    `;
+    item.querySelector('.prod-add-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      startVoiceQuantity(prod);
+    });
+    list.appendChild(item);
+  });
+  catbrowserBody.appendChild(list);
+}
+
+// ====================================================
+// VOICE QUANTITY
+// ====================================================
+
+const voicequtyOverlay = document.getElementById('voicequty-overlay');
+const voicequtyProductName = document.getElementById('voicequty-product-name');
+const voicequtyTranscript = document.getElementById('voicequty-transcript');
+
+document.getElementById('voicequty-skip-btn').addEventListener('click', () => {
+  if (selectedProductForQty) { addProductFromCatalog(selectedProductForQty, 1); closeVoiceQuantity(); }
+});
+
+function startVoiceQuantity(product) {
+  selectedProductForQty = product;
+  const name = product.description || product.name || String(product.id);
+  voicequtyProductName.textContent = name;
+  voicequtyTranscript.textContent = '"..."';
+  voicequtyOverlay.classList.add('active');
+
+  if (!recognition) {
+    addLog('warning', 'Speech recognition non supportata. Aggiunto 1 pezzo.');
+    setTimeout(() => { addProductFromCatalog(product, 1); closeVoiceQuantity(); }, 800);
+    return;
+  }
+
+  // Temporarily override recognition handlers for quantity mode
+  const origOnResult = recognition.onresult;
+  const origOnEnd = recognition.onend;
+
+  recognition.onresult = (event) => {
+    let interim = '', final = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) final += event.results[i][0].transcript;
+      else interim += event.results[i][0].transcript;
+    }
+    voicequtyTranscript.textContent = `"${final || interim}"`;
+  };
+
+  recognition.onend = async () => {
+    const spokenText = voicequtyTranscript.textContent.replace(/^"|"$/g, '').trim();
+    let qty = 1;
+    if (spokenText && spokenText !== '...') {
+      try {
+        const res = await fetch('/api/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ field: 'quantita', text: spokenText })
+        });
+        const data = await res.json();
+        qty = parseFloat(data.result) || 1;
+      } catch (e) { qty = 1; }
+    }
+    // Restore original handlers
+    recognition.onresult = origOnResult;
+    recognition.onend = origOnEnd;
+    addProductFromCatalog(product, qty);
+    closeVoiceQuantity();
+  };
+
+  addLog('info', `🎤 Ascolto quantità per: "${name}"...`);
+  recognition.start();
+}
+
+function closeVoiceQuantity() {
+  voicequtyOverlay.classList.remove('active');
+  selectedProductForQty = null;
+}
+
+function addProductFromCatalog(product, quantity) {
+  const name = product.description || product.name || String(product.id);
+  const article = {
+    id: Date.now() + Math.random().toString(36).substr(2, 5),
+    quantity: quantity,
+    description: name,
+    idVat: '22',
+    idPosType: 1,
+    idMaterial: String(product.id || ''),
+    idWarehouse: null
+  };
+  articlesList.push(article);
+  renderArticles();
+  closeCategoryBrowser();
+  addLog('nlp', `✅ Da catalogo: [Qtà: ${quantity}] ${name} (ID: ${product.id || '-'})`);
+}
 
 // ----------------------------------------------------
 // MODALS LOGIC

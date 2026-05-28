@@ -118,6 +118,15 @@
                 <div class="btn-row" style="margin-top: 10px;">
                   <button type="button" class="secondary-btn" id="add-articolo-manual-btn">Aggiungi Manualmente</button>
                 </div>
+                <button type="button" class="cat-browse-btn" id="cat-browse-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/>
+                  </svg>
+                  Sfoglia Categorie
+                </button>
               </div>
             </div>
 
@@ -212,6 +221,53 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- ====================================================
+       CATEGORY BROWSER OVERLAY
+       ==================================================== -->
+  <div class="catbrowser-overlay" id="catbrowser-overlay">
+    <div class="catbrowser-sheet">
+      <div class="catbrowser-header">
+        <button class="catbrowser-nav-btn hidden" id="catbrowser-back-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </button>
+        <span class="catbrowser-title" id="catbrowser-title">Scegli Categoria</span>
+        <button class="catbrowser-nav-btn" id="catbrowser-close-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <div class="catbrowser-body" id="catbrowser-body">
+        <!-- Categories grid or products list injected dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ====================================================
+       VOICE QUANTITY OVERLAY
+       ==================================================== -->
+  <div class="voicequty-overlay" id="voicequty-overlay">
+    <div class="voicequty-box">
+      <div class="voicequty-pulse-wrap">
+        <div class="pulse-ring"></div>
+        <div class="voicequty-mic-circle">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+        </div>
+      </div>
+      <div class="voicequty-product-name" id="voicequty-product-name">Prodotto</div>
+      <p class="voicequty-label">Quante unità?</p>
+      <div class="voicequty-transcript" id="voicequty-transcript">"..."</div>
+      <button class="btn btn-secondary voicequty-skip-btn" id="voicequty-skip-btn">+ Aggiungi 1 pezzo</button>
+    </div>
   </div>
 
   <script src="app.js"></script>

@@ -267,14 +267,38 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ROUTE: GET /api/categories (Proxy lookup)
+  if (pathname === '/api/categories' && req.method === 'GET') {
+    try {
+      const data = await requestGiobby('/productCategories', 'GET', null, {});
+      sendJSON(res, 200, data.productCategories || data.categories || []);
+    } catch (err) {
+      console.error('[Proxy Error] Categories lookup failed:', err);
+      sendJSON(res, err.status || 500, { error: err.message || 'Errore ricerca categorie.' });
+    }
+    return;
+  }
+
+  // ROUTE: GET /api/warehouses (Proxy lookup)
+  if (pathname === '/api/warehouses' && req.method === 'GET') {
+    try {
+      const data = await requestGiobby('/warehouses', 'GET', null, {});
+      sendJSON(res, 200, data.warehouses || []);
+    } catch (err) {
+      console.error('[Proxy Error] Warehouses lookup failed:', err);
+      sendJSON(res, err.status || 500, { error: err.message || 'Errore ricerca magazzini.' });
+    }
+    return;
+  }
+
   // ROUTE: GET /api/products (Proxy lookup)
   if (pathname === '/api/products' && req.method === 'GET') {
     try {
       const query = parsedUrl.searchParams.get('q') || '';
-      const params = { limit: 15, salesEnabled: true };
-      if (query) {
-        params.description = query;
-      }
+      const idCategory = parsedUrl.searchParams.get('idCategory') || '';
+      const params = { limit: 50, salesEnabled: true };
+      if (query) params.description = query;
+      if (idCategory) params.idProductCategory = idCategory;
       const data = await requestGiobby('/products', 'GET', null, params);
       sendJSON(res, 200, data.products || []);
     } catch (err) {

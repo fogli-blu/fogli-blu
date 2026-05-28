@@ -147,6 +147,21 @@ export function parseArticoloLocal(text) {
   };
 }
 
+export function parseQuantitaLocal(text) {
+  const cleaned = text.toLowerCase().trim();
+  // Direct number (digits)
+  if (/^\d+(\.\d+)?$/.test(cleaned)) return parseFloat(cleaned);
+  // Number words lookup (e.g. "cinque", "venti")
+  const words = cleaned.split(/\s+/);
+  for (const word of words) {
+    if (numberWords[word] !== undefined) return numberWords[word];
+  }
+  // Extract first digit sequence
+  const digits = cleaned.match(/\d+(\.\d+)?/);
+  if (digits) return parseFloat(digits[0]);
+  return 1;
+}
+
 // ----------------------------------------------------
 // GEMINI REST API INTEGRATION
 // ----------------------------------------------------
@@ -171,6 +186,9 @@ export async function parseWithGemini(field, text, apiKey) {
 FORMATO OUTPUT:
 {"quantita": intero, "descrizione_prodotto": "stringa"}
 Rispondi esclusivamente con l'oggetto JSON, senza markdown o commenti.`;
+    prompt = `Input: "${text}"\nOutput:`;
+  } else if (field === 'quantita') {
+    systemInstruction = `Sei un convertitore di quantità. Riceverai un input vocale in italiano (es. "cinque", "tre pezzi", "venti") e devi rispondere SOLO con il numero corrispondente (es. 5, 3, 20). Nessun testo aggiuntivo.`;
     prompt = `Input: "${text}"\nOutput:`;
   } else {
     throw new Error(`Unknown field type: ${field}`);
@@ -232,6 +250,8 @@ export async function parseField(field, text, apiKey) {
       return parseCausaleLocal(text);
     case 'articolo':
       return parseArticoloLocal(text);
+    case 'quantita':
+      return parseQuantitaLocal(text);
     default:
       return text.trim();
   }
