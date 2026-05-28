@@ -267,17 +267,70 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ROUTE: GET /api/categories (Proxy lookup)
+  // ROUTE: GET /api/categories (Proxy lookup with multiple fallbacks)
   if (pathname === '/api/categories' && req.method === 'GET') {
     try {
-      const data = await requestGiobby('/productCategories', 'GET', null, {});
-      sendJSON(res, 200, data.productCategories || data.categories || []);
+      let categories = null;
+
+      // Attempt 1: /productCategories
+      try {
+        const d = await requestGiobby('/productCategories', 'GET', null, {});
+        const arr = d.productCategories || d.categories || d.items || null;
+        if (Array.isArray(arr) && arr.length > 0) categories = arr;
+      } catch (e1) {
+        console.warn('[Proxy] /productCategories failed:', e1.message || e1);
+      }
+
+      // Attempt 2: /categories
+      if (!categories) {
+        try {
+          const d = await requestGiobby('/categories', 'GET', null, {});
+          const arr = d.categories || d.productCategories || d.items || null;
+          if (Array.isArray(arr) && arr.length > 0) categories = arr;
+        } catch (e2) {
+          console.warn('[Proxy] /categories failed:', e2.message || e2);
+        }
+      }
+
+      // Attempt 3: /itemCategories
+      if (!categories) {
+        try {
+          const d = await requestGiobby('/itemCategories', 'GET', null, {});
+          const arr = d.itemCategories || d.categories || d.items || null;
+          if (Array.isArray(arr) && arr.length > 0) categories = arr;
+        } catch (e3) {
+          console.warn('[Proxy] /itemCategories failed:', e3.message || e3);
+        }
+      }
+
+      // Fallback: extract unique categories from /products
+      if (!categories) {
+        console.log('[Proxy] Extracting categories from /products as fallback...');
+        try {
+          const d = await requestGiobby('/products', 'GET', null, { limit: 200, salesEnabled: true });
+          const products = d.products || [];
+          const catMap = new Map();
+          products.forEach(p => {
+            const catId = p.idProductCategory || p.idCategory || p.categoryId;
+            const catDesc = p.productCategoryDescription || p.categoryDescription || p.category;
+            if (catId && !catMap.has(String(catId))) {
+              catMap.set(String(catId), { id: catId, description: catDesc || String(catId) });
+            }
+          });
+          categories = Array.from(catMap.values());
+        } catch (eFallback) {
+          console.warn('[Proxy] Product fallback for categories failed:', eFallback.message || eFallback);
+        }
+      }
+
+      sendJSON(res, 200, categories || []);
     } catch (err) {
-      console.error('[Proxy Error] Categories lookup failed:', err);
+      console.error('[Proxy Error] Categories lookup completely failed:', err);
       sendJSON(res, err.status || 500, { error: err.message || 'Errore ricerca categorie.' });
     }
     return;
   }
+
 
   // ROUTE: GET /api/warehouses (Proxy lookup)
   if (pathname === '/api/warehouses' && req.method === 'GET') {
