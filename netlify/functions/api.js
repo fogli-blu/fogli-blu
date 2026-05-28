@@ -159,10 +159,10 @@ export default async (req, context) => {
     // 3. ROUTE: GET /api/products
     if (pathname === '/api/products' && req.method === 'GET') {
       const query = url.searchParams.get('q') || '';
-      const params = { limit: 15, salesEnabled: true };
-      if (query) {
-        params.description = query;
-      }
+      const idCategory = url.searchParams.get('idCategory') || '';
+      const params = { limit: 50, salesEnabled: true };
+      if (query) params.description = query;
+      if (idCategory) params.idProductsGroup = idCategory;
       const data = await requestGiobby('/products', 'GET', null, params);
       return new Response(JSON.stringify(data.products || []), {
         status: 200,
@@ -170,7 +170,55 @@ export default async (req, context) => {
       });
     }
 
-    // 4. ROUTE: POST /api/goodsissue
+    // 4. ROUTE: GET /api/categories → estrae gruppi unici dai prodotti
+    if (pathname === '/api/categories' && req.method === 'GET') {
+      // Giobby non ha GET /productsgroups (lista), solo GET /productsgroups/{id}
+      // Estraiamo i gruppi unici direttamente dai prodotti
+      const prodData = await requestGiobby('/products', 'GET', null, { limit: 200, salesEnabled: true });
+      const products = prodData.products || [];
+
+      const groupMap = new Map();
+      products.forEach(p => {
+        const gId = p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
+        const gDesc = p.productsGroupDescription ?? p.productGroupDescription ?? p.groupDescription ?? p.groupName;
+        if (gId != null && !groupMap.has(String(gId))) {
+          groupMap.set(String(gId), { id: gId, description: gDesc || String(gId) });
+        }
+      });
+
+      // Arricchisce le descrizioni mancanti con GET /productsgroups/{id}
+      const enrichPromises = [];
+      for (const [, g] of groupMap) {
+        if (!g.description || g.description === String(g.id)) {
+          enrichPromises.push(
+            requestGiobby(`/productsgroups/${g.id}`, 'GET', null, {})
+              .then(d => {
+                const det = d.productsGroup || d.productGroup || d;
+                g.description = det.description || det.name || g.description;
+              })
+              .catch(() => {})
+          );
+        }
+      }
+      await Promise.all(enrichPromises);
+
+      const groups = Array.from(groupMap.values());
+      return new Response(JSON.stringify(groups), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 5. ROUTE: GET /api/warehouses
+    if (pathname === '/api/warehouses' && req.method === 'GET') {
+      const data = await requestGiobby('/warehouses', 'GET', null, {});
+      return new Response(JSON.stringify(data.warehouses || []), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // 6. ROUTE: POST /api/goodsissue
     if (pathname === '/api/goodsissue' && req.method === 'POST') {
       const isSimulation = url.searchParams.get('simulation') === 'true';
       const body = await req.json();
@@ -183,6 +231,7 @@ export default async (req, context) => {
 
     // Fallback
     return new Response('API Route not found', { status: 404 });
+
 
   } catch (err) {
     console.error('[Netlify Error] Process failed:', err);
