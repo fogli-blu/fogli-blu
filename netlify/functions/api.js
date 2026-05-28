@@ -156,7 +156,18 @@ export default async (req, context) => {
       });
     }
 
+    // DEBUG: GET /api/debug/product → mostra la struttura JSON del primo prodotto
+    if (pathname === '/api/debug/product' && req.method === 'GET') {
+      const data = await requestGiobby('/products', 'GET', null, { limit: 3, salesEnabled: true });
+      const sample = (data.products || []).slice(0, 3);
+      return new Response(JSON.stringify({ keys: sample.length > 0 ? Object.keys(sample[0]) : [], sample }, null, 2), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // 3. ROUTE: GET /api/products
+
     if (pathname === '/api/products' && req.method === 'GET') {
       const query = url.searchParams.get('q') || '';
       const idCategory = url.searchParams.get('idCategory') || '';
