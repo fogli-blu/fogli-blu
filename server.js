@@ -267,18 +267,50 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ROUTE: GET /api/categories → Giobby /productsgroups
+  // ROUTE: GET /api/categories → estrae i gruppi unici dai prodotti
+  // (Giobby non ha GET /productsgroups senza ID, solo GET /productsgroups/{id})
   if (pathname === '/api/categories' && req.method === 'GET') {
     try {
-      const data = await requestGiobby('/productsgroups', 'GET', null, {});
-      const groups = data.productsGroups || data.productsgroups || data.groups || data.items || [];
+      // Step 1: carica tutti i prodotti per raccogliere gli idProductsGroup unici
+      const prodData = await requestGiobby('/products', 'GET', null, { limit: 200, salesEnabled: true });
+      const products = prodData.products || [];
+
+      // Step 2: raccoglie ID gruppo unici dai prodotti
+      const groupMap = new Map();
+      products.forEach(p => {
+        const gId = p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
+        const gDesc = p.productsGroupDescription ?? p.productGroupDescription ?? p.groupDescription ?? p.groupName;
+        if (gId != null && !groupMap.has(String(gId))) {
+          groupMap.set(String(gId), { id: gId, description: gDesc || String(gId) });
+        }
+      });
+
+      // Step 3: arricchisce con GET /productsgroups/{id} dove manca la descrizione
+      const enrichPromises = [];
+      for (const [, g] of groupMap) {
+        if (!g.description || g.description === String(g.id)) {
+          enrichPromises.push(
+            requestGiobby(`/productsgroups/${g.id}`, 'GET', null, {})
+              .then(d => {
+                const det = d.productsGroup || d.productGroup || d;
+                g.description = det.description || det.name || g.description;
+              })
+              .catch(() => {/* lascia la descrizione di default */})
+          );
+        }
+      }
+      await Promise.all(enrichPromises);
+
+      const groups = Array.from(groupMap.values());
+      console.log(`[Proxy] Categorie estratte dai prodotti: ${groups.length}`);
       sendJSON(res, 200, groups);
     } catch (err) {
-      console.error('[Proxy Error] Categories (productsgroups) lookup failed:', err);
-      sendJSON(res, err.status || 500, { error: err.message || 'Errore ricerca categorie.' });
+      console.error('[Proxy Error] Categories extraction failed:', err);
+      sendJSON(res, err.status || 500, { error: err.message || 'Errore estrazione categorie.' });
     }
     return;
   }
+
 
 
   // ROUTE: GET /api/warehouses (Proxy lookup)
