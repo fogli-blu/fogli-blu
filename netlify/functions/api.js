@@ -10,6 +10,7 @@ const GIOBBY_CLIENT_ID = "ZX720PTM-parquetromagna";
 // Caching parameters (persists in warm container instances)
 let cachedToken = null;
 let cachedApiUrl = null;
+let cachedDrafts = [];
 
 // Giobby authentication helper
 async function authenticateGiobby() {
@@ -248,6 +249,70 @@ export default async (req, context) => {
           });
         }
       }
+    }
+
+    // ROUTE: GET /api/drafts
+    if (pathname === '/api/drafts' && req.method === 'GET') {
+      return new Response(JSON.stringify(cachedDrafts), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ROUTE: POST /api/drafts
+    if (pathname === '/api/drafts' && req.method === 'POST') {
+      const draft = await req.json();
+      if (!draft.data || !draft.articles || !Array.isArray(draft.articles)) {
+        return new Response(JSON.stringify({ error: 'Dati bozza incompleti.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (draft.id) {
+        const idx = cachedDrafts.findIndex(d => String(d.id) === String(draft.id));
+        if (idx !== -1) {
+          cachedDrafts[idx] = { ...cachedDrafts[idx], ...draft, updatedAt: new Date().toISOString() };
+        } else {
+          draft.createdAt = new Date().toISOString();
+          cachedDrafts.push(draft);
+        }
+      } else {
+        draft.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        draft.createdAt = new Date().toISOString();
+        cachedDrafts.push(draft);
+      }
+
+      return new Response(JSON.stringify({ success: true, draft }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // ROUTE: DELETE /api/drafts
+    if (pathname === '/api/drafts' && req.method === 'DELETE') {
+      const id = url.searchParams.get('id');
+      if (!id) {
+        return new Response(JSON.stringify({ error: 'ID bozza mancante.' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      const initialLength = cachedDrafts.length;
+      cachedDrafts = cachedDrafts.filter(d => String(d.id) !== String(id));
+
+      if (cachedDrafts.length === initialLength) {
+        return new Response(JSON.stringify({ error: 'Bozza non trovata.' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
     // 5. ROUTE: GET /api/warehouses

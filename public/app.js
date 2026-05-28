@@ -3,6 +3,9 @@ let selectedCustomer = null;
 let articlesList = [];
 let warehousesList = [];
 let selectedProductForQty = null;
+let draftsList = [];
+let selectedDraftsIds = new Set();
+let currentEditingDraftId = null;
 
 // DOM Elements
 const ddtForm = document.getElementById('ddt-form');
@@ -11,6 +14,18 @@ const suggestionsList = document.getElementById('cliente-suggestions');
 const selectedClienteBadge = document.getElementById('selected-cliente-badge');
 const selectedClienteText = document.getElementById('selected-cliente-text');
 const clearClienteBtn = document.getElementById('clear-cliente-btn');
+
+// Drafts & Navigation elements
+const tabCompile = document.getElementById('tab-compile');
+const tabDrafts = document.getElementById('tab-drafts');
+const compileView = document.getElementById('compile-view');
+const draftsView = document.getElementById('drafts-view');
+const editingBanner = document.getElementById('editing-banner');
+const editingDraftInfo = document.getElementById('editing-draft-info');
+const cancelEditBtn = document.getElementById('cancel-edit-btn');
+const saveDraftBtn = document.getElementById('save-draft-btn');
+const bulkSendBtn = document.getElementById('bulk-send-btn');
+const selectAllDraftsChk = document.getElementById('select-all-drafts-chk');
 
 const dataInput = document.getElementById('data-input');
 const causaleSelect = document.getElementById('causale-select');
@@ -129,6 +144,7 @@ async function checkConnectivity() {
 // Initial check
 checkConnectivity();
 loadWarehouses();
+updateDraftsBadgeCount();
 
 // ----------------------------------------------------
 // AUTOCOMPLETE CLIENTE
@@ -502,48 +518,26 @@ async function submitDDT(isSimulation = false) {
   const causale = causaleSelect.value;
   
   // Build API JSON request payload according to Giobby DocumentApi schema
-  const payload = {
-    idDocumentType: 1,
-    idDocumentTypeExt: 0,
-    idOrderType: 1,
-    idCustomer: selectedCustomer.id,
-    idContact: selectedCustomer.idContact,
-    docDate: docDate,
-    idNumerator: 1, // Numerator 'Num 1' standard for the account
-    idBu: "U1",
-    rows: articlesList.map((a, index) => ({
-      idPos: index + 1,
-      idMaterial: a.idMaterial || null,
-      idPosType: 1,
-      quantity: a.quantity,
-      idVat: a.idVat,
-      description: a.description,
-      ...(a.idWarehouse ? { idWarehouse: a.idWarehouse } : {})
-    })),
-    deliveryData: {
-      reason: causale,
-      idReasonType: -1, // personalizzato/custom reason text
-      idGoodsAppearence: 1, // standard A VISTA
-      idDeliveryChargeTo: 2, // standard Porto Assegnato
-      idDeliveredBy: 2 // standard A mezzo Destinatario
-    }
-  };
+  const payload = buildPayload(selectedCustomer, docDate, causale, articlesList);
   
   try {
     const actionLabel = isSimulation ? 'Simulazione validazione' : 'Invio DDT';
     addLog('request', `Richiesta in corso: ${actionLabel}... Payload inviato:`, payload);
     
-    const url = `/api/goodsissue?simulation=${isSimulation}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    const data = await res.json();
-    
-    if (!res.ok) {
-      throw { message: data.error || 'Errore server', details: data.details };
+    let data;
+    if (isSimulation) {
+      const url = `/api/goodsissue?simulation=true`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      data = await res.json();
+      if (!res.ok) {
+        throw { message: data.error || 'Errore server', details: data.details };
+      }
+    } else {
+      data = await postDDTToGiobby(payload);
     }
     
     addLog('success', `Risposta ricevuta con successo!`, data);
@@ -558,6 +552,14 @@ async function submitDDT(isSimulation = false) {
       const docNum = (data.document && data.document.docNumber) ? data.document.docNumber : (data.docNumber || data.id || 'generato');
       const docDesc = (data.document && data.document.docDescription) ? data.document.docDescription : (data.docDescription || '');
       showSuccessModal(`DDT creato con successo! Numero documento: ${docNum}${docDesc ? ' (' + docDesc + ')' : ''}`);
+      
+      // If we successfully submitted to Giobby and were editing a draft, delete the draft
+      if (currentEditingDraftId) {
+        await deleteDraftFromAPI(currentEditingDraftId);
+        clearEditingMode();
+        updateDraftsBadgeCount();
+      }
+
       // Reset form on success
       resetForm();
     }
@@ -575,10 +577,576 @@ function resetForm() {
   selectedClienteBadge.style.display = 'none';
   clienteInput.style.display = 'block';
   clienteInput.value = '';
+  clearEditingMode();
 }
 
 simulaBtn.addEventListener('click', () => submitDDT(true));
 inviaBtn.addEventListener('click', () => submitDDT(false));
+
+// ====================================================
+// DRAFTS SYSTEM (LOCAL & LOCALSTORAGE SYNC)
+// ====================================================
+
+function buildPayload(customer, docDate, causale, articles) {
+  return {
+    idDocumentType: 1,
+    idDocumentTypeExt: 0,
+    idOrderType: 1,
+    idCustomer: customer.id,
+    idContact: customer.idContact,
+    docDate: docDate,
+    idNumerator: 1, // Numerator 'Num 1' standard for the account
+    idBu: "U1",
+    rows: articles.map((a, index) => ({
+      idPos: index + 1,
+      idMaterial: a.idMaterial || null,
+      idPosType: 1,
+      quantity: a.quantity,
+      idVat: a.idVat,
+      description: a.description,
+      ...(a.idWarehouse ? { idWarehouse: a.idWarehouse } : {})
+    })),
+    deliveryData: {
+      reason: causale,
+      idReasonType: -1, // personalizzato/custom reason text
+      idGoodsAppearence: 1, // standard A VISTA
+      idDeliveryChargeTo: 2, // standard Porto Assegnato
+      idDeliveredBy: 2 // standard A mezzo Destinatario
+    }
+  };
+}
+
+async function postDDTToGiobby(payload) {
+  const url = `/api/goodsissue?simulation=false`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  
+  const data = await res.json();
+  if (!res.ok) {
+    throw { message: data.error || 'Errore server', details: data.details };
+  }
+  return data;
+}
+
+async function getDraftsFromAPI() {
+  try {
+    const res = await fetch('/api/drafts');
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.warn('API GET /api/drafts failed, falling back to localStorage:', err);
+  }
+  try {
+    const local = localStorage.getItem('bozze_ddt');
+    return local ? JSON.parse(local) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+async function saveDraftToAPI(draft) {
+  let savedDraft = draft;
+  try {
+    const res = await fetch('/api/drafts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(draft)
+    });
+    if (res.ok) {
+      const respData = await res.json();
+      savedDraft = respData.draft || draft;
+    }
+  } catch (err) {
+    console.warn('API POST /api/drafts failed, using local storage fallback:', err);
+  }
+  
+  try {
+    let localDrafts = [];
+    const local = localStorage.getItem('bozze_ddt');
+    if (local) localDrafts = JSON.parse(local);
+    
+    if (savedDraft.id) {
+      const idx = localDrafts.findIndex(d => String(d.id) === String(savedDraft.id));
+      if (idx !== -1) {
+        localDrafts[idx] = { ...localDrafts[idx], ...savedDraft, updatedAt: new Date().toISOString() };
+      } else {
+        localDrafts.push(savedDraft);
+      }
+    } else {
+      savedDraft.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+      savedDraft.createdAt = new Date().toISOString();
+      localDrafts.push(savedDraft);
+    }
+    localStorage.setItem('bozze_ddt', JSON.stringify(localDrafts));
+  } catch (e) {
+    console.error('Failed to sync to localStorage:', e);
+  }
+  return savedDraft;
+}
+
+async function deleteDraftFromAPI(id) {
+  try {
+    const res = await fetch(`/api/drafts?id=${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+  } catch (err) {
+    console.warn('API DELETE /api/drafts failed, using local storage fallback:', err);
+  }
+  
+  try {
+    const local = localStorage.getItem('bozze_ddt');
+    if (local) {
+      let localDrafts = JSON.parse(local);
+      localDrafts = localDrafts.filter(d => String(d.id) !== String(id));
+      localStorage.setItem('bozze_ddt', JSON.stringify(localDrafts));
+    }
+  } catch (e) {
+    console.error('Failed to sync delete to localStorage:', e);
+  }
+}
+
+async function updateDraftsBadgeCount() {
+  const drafts = await getDraftsFromAPI();
+  const badge = document.getElementById('drafts-count');
+  if (badge) {
+    badge.textContent = drafts.length;
+    badge.style.display = drafts.length > 0 ? 'inline-block' : 'none';
+  }
+}
+
+function formatDateIT(dateStr) {
+  if (!dateStr) return '';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
+
+function clearEditingMode() {
+  currentEditingDraftId = null;
+  if (editingBanner) editingBanner.style.display = 'none';
+  if (editingDraftInfo) editingDraftInfo.textContent = '';
+}
+
+async function saveDraft() {
+  if (!selectedCustomer && articlesList.length === 0) {
+    showErrorModal('Non puoi salvare una bozza vuota. Seleziona un cliente o aggiungi almeno un articolo.');
+    return;
+  }
+  
+  const docDate = dataInput.value;
+  const causale = causaleSelect.value;
+  
+  const draft = {
+    data: docDate,
+    causale: causale,
+    selectedCustomer: selectedCustomer,
+    articles: articlesList.map(a => ({
+      quantity: a.quantity,
+      description: a.description,
+      idVat: a.idVat,
+      idMaterial: a.idMaterial || null,
+      idWarehouse: a.idWarehouse || null
+    }))
+  };
+  
+  if (currentEditingDraftId) {
+    draft.id = currentEditingDraftId;
+    addLog('info', `Salvataggio modifiche bozza ID: ${currentEditingDraftId}...`);
+  } else {
+    addLog('info', 'Creazione nuova bozza...');
+  }
+  
+  const saved = await saveDraftToAPI(draft);
+  addLog('success', `Bozza salvata con successo. ID: ${saved.id}`);
+  
+  clearEditingMode();
+  resetForm();
+  updateDraftsBadgeCount();
+  showSuccessModal('Bozza salvata con successo.');
+}
+
+function editDraft(d) {
+  clearEditingMode();
+  currentEditingDraftId = d.id;
+  
+  if (d.selectedCustomer) {
+    selectedCustomer = { ...d.selectedCustomer };
+    clienteInput.value = '';
+    clienteInput.style.display = 'none';
+    suggestionsList.style.display = 'none';
+    selectedClienteText.textContent = selectedCustomer.name;
+    selectedClienteBadge.style.display = 'flex';
+  } else {
+    selectedCustomer = null;
+    clienteInput.style.display = 'block';
+    clienteInput.value = '';
+    selectedClienteBadge.style.display = 'none';
+  }
+  
+  dataInput.value = d.data || '2026-05-28';
+  
+  let matched = false;
+  for (let i = 0; i < causaleSelect.options.length; i++) {
+    if (causaleSelect.options[i].value === d.causale) {
+      causaleSelect.selectedIndex = i;
+      matched = true;
+      break;
+    }
+  }
+  if (!matched) {
+    causaleSelect.selectedIndex = 0;
+  }
+  
+  articlesList = (d.articles || []).map(a => ({
+    id: Date.now() + Math.random().toString(36).substr(2, 5) + Math.random().toString(36).substr(2, 2),
+    quantity: a.quantity,
+    description: a.description,
+    idVat: a.idVat || '22',
+    idPosType: 1,
+    idMaterial: a.idMaterial || null,
+    idWarehouse: a.idWarehouse || null
+  }));
+  
+  renderArticles();
+  
+  if (editingBanner) {
+    const customerName = d.selectedCustomer ? d.selectedCustomer.name : 'Senza Cliente';
+    editingDraftInfo.textContent = `${customerName} (${d.articles ? d.articles.length : 0} art.)`;
+    editingBanner.style.display = 'flex';
+  }
+  
+  addLog('info', `Bozza caricata nel modulo di compilazione. ID: ${d.id}`);
+  setActiveTab('compile');
+}
+
+async function sendSingleDraft(d) {
+  if (!d.selectedCustomer) {
+    showErrorModal('La bozza non ha un cliente associato. Clicca su "Modifica" per associarne uno.');
+    return;
+  }
+  if (!d.articles || d.articles.length === 0) {
+    showErrorModal('La bozza non ha articoli. Clicca su "Modifica" per aggiungerne.');
+    return;
+  }
+  
+  const statusDiv = document.getElementById(`sending-status-${d.id}`);
+  if (statusDiv) {
+    statusDiv.className = 'draft-sending-status';
+    statusDiv.style.display = 'flex';
+    statusDiv.innerHTML = '<div class="draft-spinner"></div> Invio a Giobby...';
+  }
+  
+  const payload = buildPayload(d.selectedCustomer, d.data, d.causale || 'Vendita', d.articles);
+  addLog('request', `Invio singolo bozza ID ${d.id}...`, payload);
+  
+  try {
+    const data = await postDDTToGiobby(payload);
+    addLog('success', `Bozza ID ${d.id} inviata con successo.`, data);
+    
+    if (statusDiv) {
+      statusDiv.className = 'draft-sending-status success';
+      statusDiv.innerHTML = '✅ Inviato con successo!';
+    }
+    
+    await deleteDraftFromAPI(d.id);
+    
+    const docNum = (data.document && data.document.docNumber) ? data.document.docNumber : (data.docNumber || data.id || 'generato');
+    showSuccessModal(`DDT creato con successo dalla bozza! Numero documento: ${docNum}`);
+    
+    setTimeout(() => {
+      loadDrafts();
+      updateDraftsBadgeCount();
+    }, 1500);
+    
+  } catch (err) {
+    addLog('error', `Invio bozza ID ${d.id} fallito: ${err.message}`, err.details || err);
+    if (statusDiv) {
+      statusDiv.className = 'draft-sending-status error';
+      statusDiv.innerHTML = `❌ Errore: ${err.message}`;
+    }
+    showErrorModal(`Impossibile inviare la bozza. ${err.message}`);
+  }
+}
+
+async function sendBulkDrafts() {
+  if (selectedDraftsIds.size === 0) {
+    showErrorModal('Nessuna bozza selezionata.');
+    return;
+  }
+  
+  const idsToSend = Array.from(selectedDraftsIds);
+  addLog('info', `Inizio invio massivo per ${idsToSend.length} bozze.`);
+  
+  if (bulkSendBtn) bulkSendBtn.disabled = true;
+  if (selectAllDraftsChk) selectAllDraftsChk.disabled = true;
+  
+  let successCount = 0;
+  let failCount = 0;
+  
+  for (let id of idsToSend) {
+    const d = draftsList.find(item => String(item.id) === id);
+    if (!d) continue;
+    
+    const statusDiv = document.getElementById(`sending-status-${d.id}`);
+    if (statusDiv) {
+      statusDiv.className = 'draft-sending-status';
+      statusDiv.style.display = 'flex';
+      statusDiv.innerHTML = '<div class="draft-spinner"></div> Invio...';
+    }
+    
+    if (!d.selectedCustomer) {
+      if (statusDiv) {
+        statusDiv.className = 'draft-sending-status error';
+        statusDiv.innerHTML = '❌ Errore: Cliente mancante';
+      }
+      addLog('error', `Invio bozza ID ${d.id} fallito: Cliente non specificato.`);
+      failCount++;
+      continue;
+    }
+    
+    if (!d.articles || d.articles.length === 0) {
+      if (statusDiv) {
+        statusDiv.className = 'draft-sending-status error';
+        statusDiv.innerHTML = '❌ Errore: Nessun articolo';
+      }
+      addLog('error', `Invio bozza ID ${d.id} fallito: Nessun articolo.`);
+      failCount++;
+      continue;
+    }
+    
+    const payload = buildPayload(d.selectedCustomer, d.data, d.causale || 'Vendita', d.articles);
+    
+    try {
+      const data = await postDDTToGiobby(payload);
+      addLog('success', `Bozza ID ${d.id} inviata con successo.`, data);
+      
+      if (statusDiv) {
+        statusDiv.className = 'draft-sending-status success';
+        statusDiv.innerHTML = '✅ Inviato!';
+      }
+      
+      await deleteDraftFromAPI(d.id);
+      selectedDraftsIds.delete(id);
+      successCount++;
+    } catch (err) {
+      addLog('error', `Invio bozza ID ${d.id} fallito: ${err.message}`, err.details || err);
+      if (statusDiv) {
+        statusDiv.className = 'draft-sending-status error';
+        statusDiv.innerHTML = `❌ Errore: ${err.message}`;
+      }
+      failCount++;
+    }
+    
+    await new Promise(r => setTimeout(r, 600));
+  }
+  
+  if (bulkSendBtn) bulkSendBtn.disabled = false;
+  if (selectAllDraftsChk) {
+    selectAllDraftsChk.disabled = false;
+    selectAllDraftsChk.checked = false;
+  }
+  
+  addLog('success', `Invio massivo completato. Successi: ${successCount}, Falliti: ${failCount}`);
+  
+  if (failCount === 0) {
+    showSuccessModal(`Tutti i DDT selezionati sono stati creati con successo! (${successCount} inviati)`);
+  } else {
+    showErrorModal(`Invio massivo completato con errori. Successi: ${successCount}, Falliti: ${failCount}. Controlla gli indicatori sulle bozze.`);
+  }
+  
+  loadDrafts();
+  updateDraftsBadgeCount();
+}
+
+async function loadDrafts() {
+  const container = document.getElementById('drafts-list-container');
+  const bulkBar = document.getElementById('bulk-actions-bar');
+  const draftsCount = document.getElementById('drafts-total-count');
+  
+  if (!container) return;
+  
+  container.innerHTML = '<div class="catbrowser-loading"><div class="spinner"></div>Caricamento bozze...</div>';
+  
+  try {
+    draftsList = await getDraftsFromAPI();
+    
+    const validIds = new Set(draftsList.map(d => String(d.id)));
+    for (let id of selectedDraftsIds) {
+      if (!validIds.has(id)) {
+        selectedDraftsIds.delete(id);
+      }
+    }
+    
+    draftsCount.textContent = `${draftsList.length} bozze`;
+    
+    if (draftsList.length === 0) {
+      container.innerHTML = '<div class="empty-state">Nessuna bozza salvata.</div>';
+      if (bulkBar) bulkBar.style.display = 'none';
+      updateBulkActionsUI();
+      return;
+    }
+    
+    if (bulkBar) bulkBar.style.display = 'flex';
+    container.innerHTML = '';
+    
+    draftsList.forEach(d => {
+      const card = document.createElement('div');
+      card.className = 'draft-card';
+      card.id = `draft-card-${d.id}`;
+      
+      const customerName = d.selectedCustomer ? d.selectedCustomer.name : 'Cliente non specificato';
+      const articlesCount = d.articles ? d.articles.length : 0;
+      const formattedDate = d.data ? formatDateIT(d.data) : 'Nessuna data';
+      const isSelected = selectedDraftsIds.has(String(d.id));
+      
+      let itemsSummary = '';
+      if (d.articles && d.articles.length > 0) {
+        itemsSummary = d.articles.map(a => `${a.quantity}x ${a.description}`).join(', ');
+        if (itemsSummary.length > 60) {
+          itemsSummary = itemsSummary.substring(0, 57) + '...';
+        }
+      } else {
+        itemsSummary = 'Nessun articolo';
+      }
+      
+      card.innerHTML = `
+        <div class="draft-card-header">
+          <div class="draft-select-wrap">
+            <label class="custom-checkbox">
+              <input type="checkbox" class="draft-select-chk" data-id="${d.id}" ${isSelected ? 'checked' : ''}>
+              <span class="checkmark"></span>
+            </label>
+          </div>
+          <div class="draft-info">
+            <div class="draft-customer">${customerName}</div>
+            <div class="draft-meta">
+              <span>📅 ${formattedDate}</span>
+              <span>📝 ${d.causale || 'Vendita'}</span>
+              <span>📦 ${articlesCount} art.</span>
+            </div>
+          </div>
+        </div>
+        <div class="draft-card-body">
+          <div class="draft-items-summary">${itemsSummary}</div>
+          <div class="draft-sending-status" id="sending-status-${d.id}" style="display: none;"></div>
+        </div>
+        <div class="draft-actions">
+          <button type="button" class="draft-btn-delete" data-id="${d.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            Elimina
+          </button>
+          <button type="button" class="draft-btn-edit" data-id="${d.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            Modifica
+          </button>
+          <button type="button" class="draft-btn-send" data-id="${d.id}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            Invia
+          </button>
+        </div>
+      `;
+      
+      card.querySelector('.draft-select-chk').addEventListener('change', (e) => {
+        const id = String(e.target.dataset.id);
+        if (e.target.checked) {
+          selectedDraftsIds.add(id);
+        } else {
+          selectedDraftsIds.delete(id);
+        }
+        updateBulkActionsUI();
+      });
+      
+      card.querySelector('.draft-btn-delete').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (confirm('Sei sicuro di voler eliminare questa bozza?')) {
+          await deleteDraftFromAPI(d.id);
+          addLog('info', `Bozza eliminata. ID: ${d.id}`);
+          loadDrafts();
+          updateDraftsBadgeCount();
+        }
+      });
+      
+      card.querySelector('.draft-btn-edit').addEventListener('click', (e) => {
+        e.stopPropagation();
+        editDraft(d);
+      });
+      
+      card.querySelector('.draft-btn-send').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await sendSingleDraft(d);
+      });
+      
+      container.appendChild(card);
+    });
+    
+    updateBulkActionsUI();
+  } catch (err) {
+    container.innerHTML = `<div class="catbrowser-error">Errore caricamento bozze.<br><small>${err.message}</small></div>`;
+  }
+}
+
+function updateBulkActionsUI() {
+  const selectedCount = document.getElementById('selected-drafts-count');
+  const bulkSendCount = document.getElementById('bulk-send-count');
+  const chkAll = document.getElementById('select-all-drafts-chk');
+  
+  if (selectedCount) selectedCount.textContent = selectedDraftsIds.size;
+  if (bulkSendCount) bulkSendCount.textContent = selectedDraftsIds.size;
+  
+  if (chkAll && draftsList.length > 0) {
+    chkAll.checked = selectedDraftsIds.size === draftsList.length;
+  }
+}
+
+function setActiveTab(tab) {
+  if (tab === 'compile') {
+    tabCompile.classList.add('active');
+    tabDrafts.classList.remove('active');
+    compileView.style.display = 'block';
+    draftsView.style.display = 'none';
+  } else {
+    tabCompile.classList.remove('active');
+    tabDrafts.classList.add('active');
+    compileView.style.display = 'none';
+    draftsView.style.display = 'block';
+    loadDrafts();
+  }
+}
+
+// BIND TABS AND ACTION BUTTON LISTENERS
+tabCompile.addEventListener('click', () => setActiveTab('compile'));
+tabDrafts.addEventListener('click', () => setActiveTab('drafts'));
+saveDraftBtn.addEventListener('click', saveDraft);
+bulkSendBtn.addEventListener('click', sendBulkDrafts);
+
+if (cancelEditBtn) {
+  cancelEditBtn.addEventListener('click', () => {
+    clearEditingMode();
+    resetForm();
+    addLog('info', 'Modifica bozza annullata.');
+  });
+}
+
+if (selectAllDraftsChk) {
+  selectAllDraftsChk.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      draftsList.forEach(d => selectedDraftsIds.add(String(d.id)));
+    } else {
+      selectedDraftsIds.clear();
+    }
+    const cardChks = document.querySelectorAll('.draft-select-chk');
+    cardChks.forEach(chk => {
+      chk.checked = e.target.checked;
+    });
+    updateBulkActionsUI();
+  });
+}
 
 // ====================================================
 // LOAD WAREHOUSES

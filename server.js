@@ -34,6 +34,31 @@ loadEnv();
 
 const PORT = process.env.PORT || 3000;
 
+// Local Drafts file path and helpers
+const DRAFTS_FILE = path.join(__dirname, 'bozze_ddt.json');
+
+function readDrafts() {
+  try {
+    if (fs.existsSync(DRAFTS_FILE)) {
+      const data = fs.readFileSync(DRAFTS_FILE, 'utf8');
+      return JSON.parse(data || '[]');
+    }
+  } catch (err) {
+    console.error('[Server Error] Impossibile leggere le bozze:', err.message);
+  }
+  return [];
+}
+
+function writeDrafts(drafts) {
+  try {
+    fs.writeFileSync(DRAFTS_FILE, JSON.stringify(drafts, null, 2), 'utf8');
+    return true;
+  } catch (err) {
+    console.error('[Server Error] Impossibile salvare le bozze:', err.message);
+    return false;
+  }
+}
+
 // Giobby static credentials
 const GIOBBY_REALM = "api-server";
 const GIOBBY_CID = "parquetromagna";
@@ -322,6 +347,87 @@ const server = http.createServer(async (req, res) => {
   }
 
 
+
+  // ROUTE: GET /api/drafts
+  if (pathname === '/api/drafts' && req.method === 'GET') {
+    try {
+      const drafts = readDrafts();
+      sendJSON(res, 200, drafts);
+    } catch (err) {
+      console.error('[Proxy Error] Failed to get drafts:', err);
+      sendJSON(res, 500, { error: 'Impossibile caricare le bozze.' });
+    }
+    return;
+  }
+
+  // ROUTE: POST /api/drafts
+  if (pathname === '/api/drafts' && req.method === 'POST') {
+    try {
+      const rawBody = await readRequestBody(req);
+      const draft = JSON.parse(rawBody);
+
+      if (!draft.data || !draft.articles || !Array.isArray(draft.articles)) {
+        return sendJSON(res, 400, { error: 'Dati bozza non validi o incompleti.' });
+      }
+
+      const drafts = readDrafts();
+      if (draft.id) {
+        // Modifica bozza esistente
+        const idx = drafts.findIndex(d => String(d.id) === String(draft.id));
+        if (idx !== -1) {
+          drafts[idx] = { ...drafts[idx], ...draft, updatedAt: new Date().toISOString() };
+          console.log(`[Proxy] Bozza aggiornata con successo (ID: ${draft.id})`);
+        } else {
+          draft.createdAt = new Date().toISOString();
+          drafts.push(draft);
+          console.log(`[Proxy] Nuova bozza creata con ID fornito (ID: ${draft.id})`);
+        }
+      } else {
+        // Nuova bozza
+        draft.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+        draft.createdAt = new Date().toISOString();
+        drafts.push(draft);
+        console.log(`[Proxy] Nuova bozza creata (ID: ${draft.id})`);
+      }
+
+      const success = writeDrafts(drafts);
+      if (!success) throw new Error('Impossibile scrivere su file');
+
+      sendJSON(res, 200, { success: true, draft });
+    } catch (err) {
+      console.error('[Proxy Error] Failed to save draft:', err);
+      sendJSON(res, 500, { error: 'Impossibile salvare la bozza.' });
+    }
+    return;
+  }
+
+  // ROUTE: DELETE /api/drafts
+  if (pathname === '/api/drafts' && req.method === 'DELETE') {
+    try {
+      const id = parsedUrl.searchParams.get('id');
+      if (!id) {
+        return sendJSON(res, 400, { error: 'ID bozza mancante.' });
+      }
+
+      let drafts = readDrafts();
+      const initialLength = drafts.length;
+      drafts = drafts.filter(d => String(d.id) !== String(id));
+
+      if (drafts.length === initialLength) {
+        return sendJSON(res, 404, { error: 'Bozza non trovata.' });
+      }
+
+      const success = writeDrafts(drafts);
+      if (!success) throw new Error('Impossibile scrivere su file');
+
+      console.log(`[Proxy] Bozza eliminata (ID: ${id})`);
+      sendJSON(res, 200, { success: true });
+    } catch (err) {
+      console.error('[Proxy Error] Failed to delete draft:', err);
+      sendJSON(res, 500, { error: 'Impossibile eliminare la bozza.' });
+    }
+    return;
+  }
 
   // ROUTE: GET /api/warehouses (Proxy lookup)
   if (pathname === '/api/warehouses' && req.method === 'GET') {
