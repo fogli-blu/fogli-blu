@@ -1,6 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { fileURLToPath } from 'url';
 import { parseField } from './nlp-parser.js';
 
@@ -539,9 +540,23 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
+  // Trova gli IP locali della rete per facilitare la connessione dal telefono
+  const interfaces = os.networkInterfaces();
+  const localIps = [];
+  for (const name in interfaces) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        localIps.push(iface.address);
+      }
+    }
+  }
+
   console.log(`================================================================`);
   console.log(`🚀 Server DDT Vocale (NATIVO ZERO-DIPENDENZE) avviato!`);
-  console.log(`🌐 URL Locale: http://localhost:${PORT}`);
+  console.log(`🌐 URL Locale PC: http://localhost:${PORT}`);
+  localIps.forEach(ip => {
+    console.log(`📱 URL per Telefono: http://${ip}:${PORT}`);
+  });
   console.log(`📋 Puntamento Giobby CID: ${GIOBBY_CID}`);
   console.log(`================================================================`);
 });
