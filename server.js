@@ -464,6 +464,49 @@ const server = http.createServer(async (req, res) => {
         console.log(`[Proxy] Prodotti filtrati per categoria ${idCategory}: ${products.length} trovati su ${data.products ? data.products.length : 0}`);
       }
 
+      // Legge le giacenze locali da file
+      const stockPath = path.join(__dirname, 'giacenze_prodotti.json');
+      let localStocks = {};
+      try {
+        if (fs.existsSync(stockPath)) {
+          const fileData = fs.readFileSync(stockPath, 'utf8');
+          localStocks = JSON.parse(fileData || '{}');
+        }
+      } catch (err) {
+        console.warn('[Proxy Warning] Impossibile leggere giacenze_prodotti.json:', err.message);
+      }
+
+      // Funzione di hashing deterministica per simulazione stock
+      const getSimulatedStock = (prodId) => {
+        let hash = 0;
+        for (let i = 0; i < prodId.length; i++) {
+          hash = prodId.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const base = Math.abs(hash) % 48;
+        return (base + 1) * 5; // da 5 a 240
+      };
+
+      // Arricchisce i prodotti con le informazioni di giacenza
+      products = products.map(p => {
+        let stockVal = null;
+        let isSimulated = false;
+
+        if (p.id && localStocks[p.id] !== undefined) {
+          stockVal = localStocks[p.id];
+        } else if (p.description && localStocks[p.description] !== undefined) {
+          stockVal = localStocks[p.description];
+        } else {
+          stockVal = getSimulatedStock(p.id || p.description || 'default');
+          isSimulated = true;
+        }
+
+        return {
+          ...p,
+          stock: stockVal,
+          isSimulatedStock: isSimulated
+        };
+      });
+
       sendJSON(res, 200, products);
     } catch (err) {
       console.error('[Proxy Error] Products lookup failed:', err);

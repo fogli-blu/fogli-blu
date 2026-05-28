@@ -168,7 +168,6 @@ export default async (req, context) => {
     }
 
     // 3. ROUTE: GET /api/products
-
     if (pathname === '/api/products' && req.method === 'GET') {
       const query = url.searchParams.get('q') || '';
       const idCategory = url.searchParams.get('idCategory') || '';
@@ -186,6 +185,51 @@ export default async (req, context) => {
           return String(gId) === String(idCategory);
         });
       }
+
+      // Legge le giacenze locali da file (se accessibile nell'ambiente serverless)
+      let localStocks = {};
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const stockPath = path.join(process.cwd(), 'giacenze_prodotti.json');
+        if (fs.existsSync(stockPath)) {
+          const fileData = fs.readFileSync(stockPath, 'utf8');
+          localStocks = JSON.parse(fileData || '{}');
+        }
+      } catch (err) {
+        console.warn('[Netlify Warning] Impossibile leggere giacenze_prodotti.json:', err.message);
+      }
+
+      // Funzione di hashing deterministica per simulazione stock
+      const getSimulatedStock = (prodId) => {
+        let hash = 0;
+        for (let i = 0; i < prodId.length; i++) {
+          hash = prodId.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const base = Math.abs(hash) % 48;
+        return (base + 1) * 5;
+      };
+
+      // Arricchisce i prodotti con le informazioni di giacenza
+      products = products.map(p => {
+        let stockVal = null;
+        let isSimulated = false;
+
+        if (p.id && localStocks[p.id] !== undefined) {
+          stockVal = localStocks[p.id];
+        } else if (p.description && localStocks[p.description] !== undefined) {
+          stockVal = localStocks[p.description];
+        } else {
+          stockVal = getSimulatedStock(p.id || p.description || 'default');
+          isSimulated = true;
+        }
+
+        return {
+          ...p,
+          stock: stockVal,
+          isSimulatedStock: isSimulated
+        };
+      });
 
       return new Response(JSON.stringify(products), {
         status: 200,

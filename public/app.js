@@ -1262,13 +1262,49 @@ function renderProductList(products) {
   list.className = 'prod-list';
   products.forEach(prod => {
     const name = prod.description || prod.name || String(prod.id);
-    const code = prod.code || prod.sku || '';
+    const code = prod.id || prod.code || prod.sku || '';
+    
+    // Mappatura magazzino di default
+    const whCode = prod.defaultStorage || '';
+    let whDesc = whCode;
+    if (whCode && typeof warehousesList !== 'undefined') {
+      const matchedWh = warehousesList.find(w => String(w.id) === String(whCode));
+      if (matchedWh) {
+        whDesc = matchedWh.description || whCode;
+      }
+    }
+
+    // Calcolo e styling giacenza
+    const stockQty = prod.stock !== undefined && prod.stock !== null ? parseFloat(prod.stock) : 0;
+    const um = (prod.um || '').toUpperCase();
+    const isSimulated = !!prod.isSimulatedStock;
+    
+    let stockClass = 'out-of-stock';
+    let stockText = 'Esaurito';
+    if (stockQty > 50) {
+      stockClass = 'in-stock';
+      stockText = `Disponibile: ${stockQty} ${um}`;
+    } else if (stockQty > 0) {
+      stockClass = 'low-stock';
+      stockText = `Scarsa: ${stockQty} ${um}`;
+    } else {
+      stockText = `Esaurito ${um ? `(0 ${um})` : ''}`;
+    }
+    
+    if (isSimulated) {
+      stockClass += ' simulated';
+    }
+
     const item = document.createElement('div');
     item.className = 'prod-item';
     item.innerHTML = `
       <div class="prod-info">
-        <div class="prod-name">${name}</div>
-        ${code ? `<div class="prod-code">${code}</div>` : ''}
+        <div class="prod-name" title="${name}">${name}</div>
+        <div class="prod-meta">
+          ${code ? `<span class="prod-code">${code}</span>` : ''}
+          ${whCode ? `<span class="prod-badge badge-warehouse" title="${whDesc}">🏭 ${whCode}</span>` : ''}
+          <span class="prod-badge badge-stock ${stockClass}" title="${isSimulated ? 'Giacenza stimata (non a file)' : 'Giacenza reale caricata'}">📦 ${stockText}</span>
+        </div>
       </div>
       <button class="prod-add-btn" title="Aggiungi">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
