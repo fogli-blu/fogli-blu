@@ -523,9 +523,9 @@ async function submitDDT(isSimulation = false) {
       }
       showSuccessModal(`La simulazione del DDT è andata a buon fine. Il documento è stato validato con successo da Giobby!${warningText}`);
     } else {
-      const docNum = data.document.docNumber || 'generato';
-      const docDesc = data.document.docDescription || '';
-      showSuccessModal(`DDT creato con successo! Numero documento: ${docNum} (${docDesc})`);
+      const docNum = (data.document && data.document.docNumber) ? data.document.docNumber : (data.docNumber || data.id || 'generato');
+      const docDesc = (data.document && data.document.docDescription) ? data.document.docDescription : (data.docDescription || '');
+      showSuccessModal(`DDT creato con successo! Numero documento: ${docNum}${docDesc ? ' (' + docDesc + ')' : ''}`);
       // Reset form on success
       resetForm();
     }
