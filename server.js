@@ -267,46 +267,56 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ROUTE: GET /api/categories → estrae i gruppi unici dai prodotti
-  // (Giobby non ha GET /productsgroups senza ID, solo GET /productsgroups/{id})
+  // ROUTE: GET /api/categories → carica o estrae i gruppi di prodotti
   if (pathname === '/api/categories' && req.method === 'GET') {
     try {
-      // Step 1: carica tutti i prodotti per raccogliere gli idProductsGroup unici
-      const prodData = await requestGiobby('/products', 'GET', null, { limit: 200, salesEnabled: true });
-      const products = prodData.products || [];
-
-      // Step 2: raccoglie ID gruppo unici dai prodotti
-      const groupMap = new Map();
-      products.forEach(p => {
-        const gId = p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
-        const gDesc = p.productsGroupDescription ?? p.productGroupDescription ?? p.groupDescription ?? p.groupName;
-        if (gId != null && !groupMap.has(String(gId))) {
-          groupMap.set(String(gId), { id: gId, description: gDesc || String(gId) });
-        }
-      });
-
-      // Step 3: arricchisce con GET /productsgroups/{id} dove manca la descrizione
-      const enrichPromises = [];
-      for (const [, g] of groupMap) {
-        if (!g.description || g.description === String(g.id)) {
-          enrichPromises.push(
-            requestGiobby(`/productsgroups/${g.id}`, 'GET', null, {})
-              .then(d => {
-                const det = d.productsGroup || d.productGroup || d;
-                g.description = det.description || det.name || g.description;
-              })
-              .catch(() => {/* lascia la descrizione di default */})
-          );
-        }
-      }
-      await Promise.all(enrichPromises);
-
-      const groups = Array.from(groupMap.values());
-      console.log(`[Proxy] Categorie estratte dai prodotti: ${groups.length}`);
+      console.log('[Proxy] Richiesta categorie da GET /productsgroups...');
+      const data = await requestGiobby('/productsgroups', 'GET', null, {});
+      const groups = (data.productsGroups || []).map(g => ({
+        id: g.id,
+        description: g.description || g.description_IT || String(g.id)
+      }));
+      console.log(`[Proxy] Categorie caricate correttamente: ${groups.length}`);
       sendJSON(res, 200, groups);
     } catch (err) {
-      console.error('[Proxy Error] Categories extraction failed:', err);
-      sendJSON(res, err.status || 500, { error: err.message || 'Errore estrazione categorie.' });
+      console.warn('[Proxy Warning] GET /productsgroups fallito, avvio estrazione di fallback dai prodotti:', err.message || err);
+      try {
+        // Fallback: carica i prodotti per raccogliere gli idMaterialGroup/idProductsGroup unici
+        const prodData = await requestGiobby('/products', 'GET', null, { limit: 200, salesEnabled: true });
+        const products = prodData.products || [];
+
+        const groupMap = new Map();
+        products.forEach(p => {
+          const gId = p.idMaterialGroup ?? p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
+          const gDesc = p.materialGroupDesc ?? p.productsGroupDescription ?? p.productGroupDescription ?? p.groupDescription ?? p.groupName;
+          if (gId != null && !groupMap.has(String(gId))) {
+            groupMap.set(String(gId), { id: gId, description: gDesc || String(gId) });
+          }
+        });
+
+        // Arricchisce con GET /productsgroups/{id} dove manca la descrizione
+        const enrichPromises = [];
+        for (const [, g] of groupMap) {
+          if (!g.description || g.description === String(g.id)) {
+            enrichPromises.push(
+              requestGiobby(`/productsgroups/${g.id}`, 'GET', null, {})
+                .then(d => {
+                  const det = d.productsGroup || d.productGroup || d;
+                  g.description = det.description || det.name || g.description;
+                })
+                .catch(() => {/* lascia la descrizione di default */})
+            );
+          }
+        }
+        await Promise.all(enrichPromises);
+
+        const groups = Array.from(groupMap.values());
+        console.log(`[Proxy] Categorie estratte dai prodotti (fallback): ${groups.length}`);
+        sendJSON(res, 200, groups);
+      } catch (fallbackErr) {
+        console.error('[Proxy Error] Categories extraction fallback failed:', fallbackErr);
+        sendJSON(res, fallbackErr.status || 500, { error: fallbackErr.message || 'Errore estrazione categorie.' });
+      }
     }
     return;
   }
@@ -330,11 +340,25 @@ const server = http.createServer(async (req, res) => {
     try {
       const query = parsedUrl.searchParams.get('q') || '';
       const idCategory = parsedUrl.searchParams.get('idCategory') || '';
-      const params = { limit: 50, salesEnabled: true };
+      
+      // Se filtriamo per categoria, aumentiamo il limite a 1000 per assicurarci di trovare i prodotti,
+      // dato che Giobby non filtra lato server tramite i parametri di query del gruppo.
+      const limit = idCategory ? 1000 : 50;
+      const params = { limit, salesEnabled: true };
       if (query) params.description = query;
-      if (idCategory) params.idProductsGroup = idCategory;
+
       const data = await requestGiobby('/products', 'GET', null, params);
-      sendJSON(res, 200, data.products || []);
+      let products = data.products || [];
+
+      if (idCategory) {
+        products = products.filter(p => {
+          const gId = p.idMaterialGroup ?? p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
+          return String(gId) === String(idCategory);
+        });
+        console.log(`[Proxy] Prodotti filtrati per categoria ${idCategory}: ${products.length} trovati su ${data.products ? data.products.length : 0}`);
+      }
+
+      sendJSON(res, 200, products);
     } catch (err) {
       console.error('[Proxy Error] Products lookup failed:', err);
       sendJSON(res, err.status || 500, { error: err.message || 'Errore ricerca prodotti.' });

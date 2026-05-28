@@ -171,53 +171,83 @@ export default async (req, context) => {
     if (pathname === '/api/products' && req.method === 'GET') {
       const query = url.searchParams.get('q') || '';
       const idCategory = url.searchParams.get('idCategory') || '';
-      const params = { limit: 50, salesEnabled: true };
+      
+      const limit = idCategory ? 1000 : 50;
+      const params = { limit, salesEnabled: true };
       if (query) params.description = query;
-      if (idCategory) params.idProductsGroup = idCategory;
+
       const data = await requestGiobby('/products', 'GET', null, params);
-      return new Response(JSON.stringify(data.products || []), {
+      let products = data.products || [];
+
+      if (idCategory) {
+        products = products.filter(p => {
+          const gId = p.idMaterialGroup ?? p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
+          return String(gId) === String(idCategory);
+        });
+      }
+
+      return new Response(JSON.stringify(products), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // 4. ROUTE: GET /api/categories → estrae gruppi unici dai prodotti
+    // 4. ROUTE: GET /api/categories → carica o estrae i gruppi di prodotti
     if (pathname === '/api/categories' && req.method === 'GET') {
-      // Giobby non ha GET /productsgroups (lista), solo GET /productsgroups/{id}
-      // Estraiamo i gruppi unici direttamente dai prodotti
-      const prodData = await requestGiobby('/products', 'GET', null, { limit: 200, salesEnabled: true });
-      const products = prodData.products || [];
+      try {
+        const data = await requestGiobby('/productsgroups', 'GET', null, {});
+        const groups = (data.productsGroups || []).map(g => ({
+          id: g.id,
+          description: g.description || g.description_IT || String(g.id)
+        }));
+        return new Response(JSON.stringify(groups), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (err) {
+        console.warn('[Netlify Proxy Warning] GET /productsgroups failed, starting fallback extraction from products:', err.message || err);
+        try {
+          const prodData = await requestGiobby('/products', 'GET', null, { limit: 200, salesEnabled: true });
+          const products = prodData.products || [];
 
-      const groupMap = new Map();
-      products.forEach(p => {
-        const gId = p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
-        const gDesc = p.productsGroupDescription ?? p.productGroupDescription ?? p.groupDescription ?? p.groupName;
-        if (gId != null && !groupMap.has(String(gId))) {
-          groupMap.set(String(gId), { id: gId, description: gDesc || String(gId) });
-        }
-      });
+          const groupMap = new Map();
+          products.forEach(p => {
+            const gId = p.idMaterialGroup ?? p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
+            const gDesc = p.materialGroupDesc ?? p.productsGroupDescription ?? p.productGroupDescription ?? p.groupDescription ?? p.groupName;
+            if (gId != null && !groupMap.has(String(gId))) {
+              groupMap.set(String(gId), { id: gId, description: gDesc || String(gId) });
+            }
+          });
 
-      // Arricchisce le descrizioni mancanti con GET /productsgroups/{id}
-      const enrichPromises = [];
-      for (const [, g] of groupMap) {
-        if (!g.description || g.description === String(g.id)) {
-          enrichPromises.push(
-            requestGiobby(`/productsgroups/${g.id}`, 'GET', null, {})
-              .then(d => {
-                const det = d.productsGroup || d.productGroup || d;
-                g.description = det.description || det.name || g.description;
-              })
-              .catch(() => {})
-          );
+          // Arricchisce le descrizioni mancanti con GET /productsgroups/{id}
+          const enrichPromises = [];
+          for (const [, g] of groupMap) {
+            if (!g.description || g.description === String(g.id)) {
+              enrichPromises.push(
+                requestGiobby(`/productsgroups/${g.id}`, 'GET', null, {})
+                  .then(d => {
+                    const det = d.productsGroup || d.productGroup || d;
+                    g.description = det.description || det.name || g.description;
+                  })
+                  .catch(() => {})
+              );
+            }
+          }
+          await Promise.all(enrichPromises);
+
+          const groups = Array.from(groupMap.values());
+          return new Response(JSON.stringify(groups), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        } catch (fallbackErr) {
+          console.error('[Netlify Proxy Error] Categories extraction fallback failed:', fallbackErr);
+          return new Response(JSON.stringify({ error: fallbackErr.message || 'Errore estrazione categorie.' }), {
+            status: fallbackErr.status || 500,
+            headers: { 'Content-Type': 'application/json' }
+          });
         }
       }
-      await Promise.all(enrichPromises);
-
-      const groups = Array.from(groupMap.values());
-      return new Response(JSON.stringify(groups), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
     }
 
     // 5. ROUTE: GET /api/warehouses
