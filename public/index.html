@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Giobby Vocal DDT Compiler</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background decorative glowing orbs -->
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+
+  <div class="app-container">
+    <!-- Desktop Device Frame Wrapper -->
+    <div class="smartphone-frame">
+      <div class="smartphone-screen">
+        
+        <!-- App Header -->
+        <header class="app-header">
+          <div class="header-logo">
+            <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+              <line x1="12" x2="12" y1="19" y2="22"/>
+            </svg>
+            <h1>VocalDDT</h1>
+          </div>
+          <div class="status-badge" id="giobby-status">Connessione...</div>
+        </header>
+
+        <!-- Main Form Scrollable Container -->
+        <main class="app-body">
+          <form id="ddt-form" onsubmit="event.preventDefault();">
+            
+            <!-- Section: Document Header Info -->
+            <div class="card glass">
+              <div class="card-title">Dati Testata DDT</div>
+              
+              <!-- FIELD: Cliente -->
+              <div class="input-group">
+                <label for="cliente-input">Cliente / Ragione Sociale</label>
+                <div class="vocal-input-wrapper">
+                  <input type="text" id="cliente-input" placeholder="Cerca o detta cliente..." autocomplete="off">
+                  <button type="button" class="mic-btn" id="mic-cliente" title="Detta Cliente">
+                    <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                      <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+                      <line x1="12" x2="12" y1="19" y2="22"/>
+                    </svg>
+                  </button>
+                </div>
+                <!-- Autocomplete suggestions -->
+                <div class="autocomplete-list" id="cliente-suggestions"></div>
+                <div class="selected-badge" id="selected-cliente-badge" style="display: none;">
+                  <span id="selected-cliente-text">Nessun cliente selezionato</span>
+                  <button type="button" class="clear-badge-btn" id="clear-cliente-btn">&times;</button>
+                </div>
+              </div>
+
+              <!-- FIELD: Data Documento -->
+              <div class="input-group">
+                <label for="data-input">Data Documento</label>
+                <div class="vocal-input-wrapper">
+                  <input type="date" id="data-input" value="2026-05-28">
+                  <button type="button" class="mic-btn" id="mic-data" title="Detta Data">
+                    <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                      <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+                      <line x1="12" x2="12" y1="19" y2="22"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- FIELD: Causale Trasporto -->
+              <div class="input-group">
+                <label for="causale-select">Causale Trasporto</label>
+                <div class="vocal-input-wrapper">
+                  <select id="causale-select">
+                    <option value="Vendita">Vendita</option>
+                    <option value="Conto Visione">Conto Visione</option>
+                    <option value="Reso">Reso</option>
+                  </select>
+                  <button type="button" class="mic-btn" id="mic-causale" title="Detta Causale">
+                    <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                      <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+                      <line x1="12" x2="12" y1="19" y2="22"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section: Add Articles -->
+            <div class="card glass">
+              <div class="card-title">Aggiungi Articoli</div>
+              
+              <div class="input-group">
+                <label for="articolo-vocal-input">Dettatura Articolo (es: "cinque scatole di bulloni")</label>
+                <div class="vocal-input-wrapper">
+                  <input type="text" id="articolo-vocal-input" placeholder="Detta: '[quantità] [articolo]'">
+                  <button type="button" class="mic-btn mic-btn-large" id="mic-articolo" title="Aggiungi con Voce">
+                    <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                      <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+                      <line x1="12" x2="12" y1="19" y2="22"/>
+                    </svg>
+                    <span>+ Voce</span>
+                  </button>
+                </div>
+                <div class="btn-row" style="margin-top: 10px;">
+                  <button type="button" class="secondary-btn" id="add-articolo-manual-btn">Aggiungi Manualmente</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Section: Articles List -->
+            <div class="card glass">
+              <div class="card-title d-flex justify-between">
+                <span>Riepilogo Articoli</span>
+                <span class="badge" id="article-count">0 articoli</span>
+              </div>
+              
+              <div class="articles-list" id="articles-container">
+                <div class="empty-state">Nessun articolo inserito. Usa il pulsante vocale o inserisci manualmente.</div>
+              </div>
+            </div>
+
+            <!-- Form Action Buttons -->
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" id="simula-btn">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                Simula Invio
+              </button>
+              <button type="button" class="btn btn-primary" id="invia-btn">
+                Invia a Giobby
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+
+          </form>
+        </main>
+
+        <!-- Transcription Overlay (glowing status during active listening) -->
+        <div class="listening-overlay" id="listening-overlay">
+          <div class="listening-box">
+            <div class="pulse-ring"></div>
+            <div class="listening-mic">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+                <line x1="12" x2="12" y1="19" y2="22"/>
+              </svg>
+            </div>
+            <p class="listening-status">Ascolto in corso per <span id="listening-field-name">...</span></p>
+            <p class="listening-hint">Parla adesso...</p>
+            <div class="speech-transcript" id="live-transcript">"..."</div>
+          </div>
+        </div>
+
+        <!-- Popups: Success and Errors -->
+        <div class="modal-backdrop" id="modal-backdrop">
+          <div class="modal card glass" id="success-modal">
+            <div class="modal-icon success">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <h2>DDT Creato con Successo!</h2>
+            <p id="success-modal-text">Il documento è stato inserito nel gestionale Giobby.</p>
+            <button type="button" class="btn btn-primary" id="success-modal-close">Ottimo</button>
+          </div>
+
+          <div class="modal card glass" id="error-modal">
+            <div class="modal-icon error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </div>
+            <h2>Errore di Invio</h2>
+            <p id="error-modal-text">Si è verificato un errore.</p>
+            <button type="button" class="btn btn-secondary" id="error-modal-close">Chiudi</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Sliding Dev Log Explorer Panel (at the bottom) -->
+    <div class="dev-panel" id="dev-panel">
+      <div class="dev-panel-header" id="dev-panel-header">
+        <div class="dev-title">
+          <span class="status-indicator"></span>
+          <span>Explorer Log API Giobby & NLP</span>
+        </div>
+        <button class="dev-toggle-btn" id="dev-toggle-btn">
+          <svg class="chevron-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="18 15 12 9 6 15"></polyline>
+          </svg>
+        </button>
+      </div>
+      <div class="dev-panel-body" id="dev-logs-container">
+        <!-- Log messages will be dynamically injected here -->
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

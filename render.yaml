@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: giobby-vocal-ddt
+    env: node
+    plan: free
+    buildCommand: "" # Nessun comando di build (zero-dipendenze)
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: GEMINI_API_KEY
+        sync: false
