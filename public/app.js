@@ -421,6 +421,20 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   addLog('warning', 'Il tuo browser non supporta le API di sintesi vocale. Digita o simula i testi.');
 }
 
+if (listeningOverlay) {
+  listeningOverlay.addEventListener('click', (e) => {
+    if (e.target === listeningOverlay) {
+      if (recognition) {
+        try {
+          recognition.abort();
+        } catch (err) {}
+      }
+      listeningOverlay.classList.remove('active');
+      addLog('info', 'Riconoscimento vocale principale annullato dall\'utente cliccando sullo sfondo.');
+    }
+  });
+}
+
 // Attach microphone button triggers
 function setupMicTrigger(buttonId, fieldName, displayName) {
   document.getElementById(buttonId).addEventListener('click', () => {
@@ -1310,30 +1324,6 @@ const voicequtyOverlay = document.getElementById('voicequty-overlay');
 const voicequtyProductName = document.getElementById('voicequty-product-name');
 const voicequtyTranscript = document.getElementById('voicequty-transcript');
 
-document.getElementById('voicequty-skip-btn').addEventListener('click', () => {
-  if (selectedProductForQty) { addProductFromCatalog(selectedProductForQty, 1); closeVoiceQuantity(); }
-});
-
-const voicequtyCancelBtn = document.getElementById('voicequty-cancel-btn');
-if (voicequtyCancelBtn) {
-  voicequtyCancelBtn.addEventListener('click', () => {
-    isVoiceQuantityCancelled = true;
-    if (voiceQtyTimeout) {
-      clearTimeout(voiceQtyTimeout);
-      voiceQtyTimeout = null;
-    }
-    if (recognition) {
-      try {
-        recognition.abort();
-      } catch (e) {
-        closeVoiceQuantity();
-      }
-    } else {
-      closeVoiceQuantity();
-    }
-  });
-}
-
 function startVoiceQuantity(product) {
   isVoiceQuantityCancelled = false;
   selectedProductForQty = product;
@@ -1342,7 +1332,8 @@ function startVoiceQuantity(product) {
   voicequtyTranscript.textContent = '"..."';
   voicequtyOverlay.classList.add('active');
 
-  if (!recognition) {
+  const SpeechGen = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechGen) {
     addLog('warning', 'Speech recognition non supportata. Inserimento manuale...');
     voiceQtyTimeout = setTimeout(() => {
       if (!isVoiceQuantityCancelled) {
@@ -1353,11 +1344,17 @@ function startVoiceQuantity(product) {
     return;
   }
 
-  // Temporarily override recognition handlers for quantity mode
-  const origOnResult = recognition.onresult;
-  const origOnEnd = recognition.onend;
+  // Create a separate instance specifically for the quantity to avoid conflicts
+  const qtyRec = new SpeechGen();
+  qtyRec.lang = 'it-IT';
+  qtyRec.continuous = false;
+  qtyRec.interimResults = true;
 
-  recognition.onresult = (event) => {
+  qtyRec.onstart = () => {
+    addLog('info', `Riconoscimento vocale quantità avviato per: ${name}`);
+  };
+
+  qtyRec.onresult = (event) => {
     if (isVoiceQuantityCancelled) return;
     let interim = '', final = '';
     for (let i = event.resultIndex; i < event.results.length; ++i) {
@@ -1367,11 +1364,7 @@ function startVoiceQuantity(product) {
     voicequtyTranscript.textContent = `"${final || interim}"`;
   };
 
-  recognition.onend = async () => {
-    // Restore original handlers
-    recognition.onresult = origOnResult;
-    recognition.onend = origOnEnd;
-
+  qtyRec.onend = async () => {
     if (isVoiceQuantityCancelled) {
       closeVoiceQuantity();
       addLog('info', `Dettatura quantità annullata per: "${name}"`);
@@ -1396,8 +1389,48 @@ function startVoiceQuantity(product) {
     closeVoiceQuantity();
   };
 
+  qtyRec.onerror = (event) => {
+    addLog('error', `Errore nel riconoscimento vocale quantità: ${event.error}`);
+    if (event.error !== 'aborted') {
+      closeVoiceQuantity();
+    }
+  };
+
+  // Wire buttons inside the quantity popup
+  const voicequtyCancelBtn = document.getElementById('voicequty-cancel-btn');
+  if (voicequtyCancelBtn) {
+    voicequtyCancelBtn.onclick = () => {
+      isVoiceQuantityCancelled = true;
+      if (voiceQtyTimeout) {
+        clearTimeout(voiceQtyTimeout);
+        voiceQtyTimeout = null;
+      }
+      try {
+        qtyRec.abort();
+      } catch (e) {
+        closeVoiceQuantity();
+      }
+    };
+  }
+
+  const voicequtySkipBtn = document.getElementById('voicequty-skip-btn');
+  if (voicequtySkipBtn) {
+    voicequtySkipBtn.onclick = () => {
+      isVoiceQuantityCancelled = true; // prevent onend from adding
+      if (voiceQtyTimeout) {
+        clearTimeout(voiceQtyTimeout);
+        voiceQtyTimeout = null;
+      }
+      try {
+        qtyRec.abort();
+      } catch (e) {}
+      addProductFromCatalog(product, 1);
+      closeVoiceQuantity();
+    };
+  }
+
   addLog('info', `🎤 Ascolto quantità per: "${name}"...`);
-  recognition.start();
+  qtyRec.start();
 }
 
 function closeVoiceQuantity() {
