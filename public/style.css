@@ -135,6 +135,22 @@ body {
   }
 }
 
+/* PC/Tablet layout expansion when active drafts tab is chosen */
+@media (min-width: 481px) {
+  .smartphone-frame.pc-expanded {
+    width: 90%;
+    max-width: 960px;
+    height: 820px;
+    border-radius: 24px;
+  }
+  
+  .smartphone-frame.pc-expanded .drafts-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+}
+
 /* ----------------------------------------------------
    APP HEADER
    ---------------------------------------------------- */

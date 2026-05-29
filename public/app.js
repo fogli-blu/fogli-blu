@@ -1121,16 +1121,19 @@ function updateBulkActionsUI() {
 }
 
 function setActiveTab(tab) {
+  const frame = document.querySelector('.smartphone-frame');
   if (tab === 'compile') {
     tabCompile.classList.add('active');
     tabDrafts.classList.remove('active');
     compileView.style.display = 'block';
     draftsView.style.display = 'none';
+    if (frame) frame.classList.remove('pc-expanded');
   } else {
     tabCompile.classList.remove('active');
     tabDrafts.classList.add('active');
     compileView.style.display = 'none';
     draftsView.style.display = 'block';
+    if (frame) frame.classList.add('pc-expanded');
     loadDrafts();
   }
 }
