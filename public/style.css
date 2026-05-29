@@ -1099,9 +1099,30 @@ body {
   background: hsla(262,83%,62%,0.08); border: 1px dashed hsla(262,83%,62%,0.35);
   border-radius: var(--radius-md); padding: 10px 24px; min-width: 150px;
 }
+.voicequty-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+}
 .voicequty-skip-btn {
-  margin-top: 4px; font-size: 0.8rem; padding: 8px 22px;
-  height: auto; width: auto; flex: none; border-radius: 20px;
+  font-size: 0.8rem; padding: 8px 22px;
+  height: auto; width: 100%; flex: none; border-radius: 20px;
+  margin: 0;
+}
+.voicequty-cancel-btn {
+  font-size: 0.8rem; padding: 8px 22px;
+  height: auto; width: 100%; flex: none; border-radius: 20px;
+  background: hsla(354, 70%, 54%, 0.12);
+  border: 1px solid hsla(354, 70%, 54%, 0.35);
+  color: hsl(354, 90%, 70%);
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+.voicequty-cancel-btn:hover, .voicequty-cancel-btn:active {
+  background: hsla(354, 70%, 54%, 0.25);
+  border-color: hsla(354, 70%, 54%, 0.6);
 }
 .article-warehouse-row { display: flex; gap: 6px; align-items: center; margin-top: 2px; }
 .article-field.wh-field-wrap { flex: 1; }

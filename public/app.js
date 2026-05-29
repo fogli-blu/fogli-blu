@@ -6,6 +6,8 @@ let selectedProductForQty = null;
 let draftsList = [];
 let selectedDraftsIds = new Set();
 let currentEditingDraftId = null;
+let isVoiceQuantityCancelled = false;
+let voiceQtyTimeout = null;
 
 // DOM Elements
 const ddtForm = document.getElementById('ddt-form');
@@ -1274,27 +1276,6 @@ function renderProductList(products) {
       }
     }
 
-    // Calcolo e styling giacenza
-    const stockQty = prod.stock !== undefined && prod.stock !== null ? parseFloat(prod.stock) : 0;
-    const um = (prod.um || '').toUpperCase();
-    const isSimulated = !!prod.isSimulatedStock;
-    
-    let stockClass = 'out-of-stock';
-    let stockText = 'Esaurito';
-    if (stockQty > 50) {
-      stockClass = 'in-stock';
-      stockText = `Disponibile: ${stockQty} ${um}`;
-    } else if (stockQty > 0) {
-      stockClass = 'low-stock';
-      stockText = `Scarsa: ${stockQty} ${um}`;
-    } else {
-      stockText = `Esaurito ${um ? `(0 ${um})` : ''}`;
-    }
-    
-    if (isSimulated) {
-      stockClass += ' simulated';
-    }
-
     const item = document.createElement('div');
     item.className = 'prod-item';
     item.innerHTML = `
@@ -1303,7 +1284,6 @@ function renderProductList(products) {
         <div class="prod-meta">
           ${code ? `<span class="prod-code">${code}</span>` : ''}
           ${whCode ? `<span class="prod-badge badge-warehouse" title="${whDesc}">🏭 ${whCode}</span>` : ''}
-          <span class="prod-badge badge-stock ${stockClass}" title="${isSimulated ? 'Giacenza stimata (non a file)' : 'Giacenza reale caricata'}">📦 ${stockText}</span>
         </div>
       </div>
       <button class="prod-add-btn" title="Aggiungi">
@@ -1334,7 +1314,28 @@ document.getElementById('voicequty-skip-btn').addEventListener('click', () => {
   if (selectedProductForQty) { addProductFromCatalog(selectedProductForQty, 1); closeVoiceQuantity(); }
 });
 
+const voicequtyCancelBtn = document.getElementById('voicequty-cancel-btn');
+if (voicequtyCancelBtn) {
+  voicequtyCancelBtn.addEventListener('click', () => {
+    isVoiceQuantityCancelled = true;
+    if (voiceQtyTimeout) {
+      clearTimeout(voiceQtyTimeout);
+      voiceQtyTimeout = null;
+    }
+    if (recognition) {
+      try {
+        recognition.abort();
+      } catch (e) {
+        closeVoiceQuantity();
+      }
+    } else {
+      closeVoiceQuantity();
+    }
+  });
+}
+
 function startVoiceQuantity(product) {
+  isVoiceQuantityCancelled = false;
   selectedProductForQty = product;
   const name = product.description || product.name || String(product.id);
   voicequtyProductName.textContent = name;
@@ -1342,8 +1343,13 @@ function startVoiceQuantity(product) {
   voicequtyOverlay.classList.add('active');
 
   if (!recognition) {
-    addLog('warning', 'Speech recognition non supportata. Aggiunto 1 pezzo.');
-    setTimeout(() => { addProductFromCatalog(product, 1); closeVoiceQuantity(); }, 800);
+    addLog('warning', 'Speech recognition non supportata. Inserimento manuale...');
+    voiceQtyTimeout = setTimeout(() => {
+      if (!isVoiceQuantityCancelled) {
+        addProductFromCatalog(product, 1);
+        closeVoiceQuantity();
+      }
+    }, 1500);
     return;
   }
 
@@ -1352,6 +1358,7 @@ function startVoiceQuantity(product) {
   const origOnEnd = recognition.onend;
 
   recognition.onresult = (event) => {
+    if (isVoiceQuantityCancelled) return;
     let interim = '', final = '';
     for (let i = event.resultIndex; i < event.results.length; ++i) {
       if (event.results[i].isFinal) final += event.results[i][0].transcript;
@@ -1361,6 +1368,16 @@ function startVoiceQuantity(product) {
   };
 
   recognition.onend = async () => {
+    // Restore original handlers
+    recognition.onresult = origOnResult;
+    recognition.onend = origOnEnd;
+
+    if (isVoiceQuantityCancelled) {
+      closeVoiceQuantity();
+      addLog('info', `Dettatura quantità annullata per: "${name}"`);
+      return;
+    }
+
     const spokenText = voicequtyTranscript.textContent.replace(/^"|"$/g, '').trim();
     let qty = 1;
     if (spokenText && spokenText !== '...') {
@@ -1374,9 +1391,7 @@ function startVoiceQuantity(product) {
         qty = parseFloat(data.result) || 1;
       } catch (e) { qty = 1; }
     }
-    // Restore original handlers
-    recognition.onresult = origOnResult;
-    recognition.onend = origOnEnd;
+
     addProductFromCatalog(product, qty);
     closeVoiceQuantity();
   };
