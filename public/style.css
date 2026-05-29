@@ -279,6 +279,47 @@ body {
   margin-bottom: 4px;
 }
 
+/* Utility helper classes */
+.d-flex {
+  display: flex !important;
+}
+.justify-between {
+  justify-content: space-between !important;
+}
+.align-items-center {
+  align-items: center !important;
+}
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+/* Collapsible card styling */
+.card-body-collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+.card.collapsed {
+  gap: 0;
+}
+.card.collapsed .card-body-collapsible {
+  display: none !important;
+}
+.card.collapsed .card-title {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+.card .toggle-icon {
+  display: inline-block;
+  transition: transform var(--transition-smooth);
+}
+.card.collapsed .toggle-icon {
+  transform: rotate(-90deg);
+}
+
+
 .form-row {
   display: flex;
   flex-direction: column;

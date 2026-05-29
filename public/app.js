@@ -35,6 +35,8 @@ const articleVocalInput = document.getElementById('articolo-vocal-input');
 const articlesContainer = document.getElementById('articles-container');
 const articleCountBadge = document.getElementById('article-count');
 const addArticoloManualBtn = document.getElementById('add-articolo-manual-btn');
+const addArticlesCard = document.getElementById('add-articles-card');
+const addArticlesTitle = document.getElementById('add-articles-title');
 
 const simulaBtn = document.getElementById('simula-btn');
 const inviaBtn = document.getElementById('invia-btn');
@@ -755,6 +757,10 @@ function clearEditingMode() {
       frame.classList.remove('pc-expanded');
     }
   }
+  
+  if (addArticlesCard) {
+    addArticlesCard.classList.remove('collapsed');
+  }
 }
 
 async function saveDraft() {
@@ -807,6 +813,10 @@ function editDraft(d) {
   if (frame) {
     frame.classList.add('pc-expanded');
     frame.classList.add('edit-light-theme');
+  }
+  
+  if (addArticlesCard) {
+    addArticlesCard.classList.add('collapsed');
   }
   
   if (d.selectedCustomer) {
@@ -1174,6 +1184,12 @@ tabCompile.addEventListener('click', () => setActiveTab('compile'));
 tabDrafts.addEventListener('click', () => setActiveTab('drafts'));
 saveDraftBtn.addEventListener('click', saveDraft);
 bulkSendBtn.addEventListener('click', sendBulkDrafts);
+
+if (addArticlesTitle && addArticlesCard) {
+  addArticlesTitle.addEventListener('click', () => {
+    addArticlesCard.classList.toggle('collapsed');
+  });
+}
 
 if (cancelEditBtn) {
   cancelEditBtn.addEventListener('click', () => {
