@@ -786,6 +786,7 @@ async function saveDraft() {
     addLog('info', 'Creazione nuova bozza...');
   }
   
+  const wasEditing = !!currentEditingDraftId;
   const saved = await saveDraftToAPI(draft);
   addLog('success', `Bozza salvata con successo. ID: ${saved.id}`);
   
@@ -793,6 +794,9 @@ async function saveDraft() {
   resetForm();
   updateDraftsBadgeCount();
   showSuccessModal('Bozza salvata con successo.');
+  if (wasEditing) {
+    setActiveTab('drafts');
+  }
 }
 
 function editDraft(d) {
@@ -1176,6 +1180,7 @@ if (cancelEditBtn) {
     clearEditingMode();
     resetForm();
     addLog('info', 'Modifica bozza annullata.');
+    setActiveTab('drafts');
   });
 }
 
