@@ -747,6 +747,14 @@ function clearEditingMode() {
   currentEditingDraftId = null;
   if (editingBanner) editingBanner.style.display = 'none';
   if (editingDraftInfo) editingDraftInfo.textContent = '';
+  
+  const frame = document.querySelector('.smartphone-frame');
+  if (frame) {
+    frame.classList.remove('edit-light-theme');
+    if (tabCompile.classList.contains('active')) {
+      frame.classList.remove('pc-expanded');
+    }
+  }
 }
 
 async function saveDraft() {
@@ -790,6 +798,12 @@ async function saveDraft() {
 function editDraft(d) {
   clearEditingMode();
   currentEditingDraftId = d.id;
+  
+  const frame = document.querySelector('.smartphone-frame');
+  if (frame) {
+    frame.classList.add('pc-expanded');
+    frame.classList.add('edit-light-theme');
+  }
   
   if (d.selectedCustomer) {
     selectedCustomer = { ...d.selectedCustomer };
@@ -1127,13 +1141,26 @@ function setActiveTab(tab) {
     tabDrafts.classList.remove('active');
     compileView.style.display = 'block';
     draftsView.style.display = 'none';
-    if (frame) frame.classList.remove('pc-expanded');
+    if (currentEditingDraftId) {
+      if (frame) {
+        frame.classList.add('pc-expanded');
+        frame.classList.add('edit-light-theme');
+      }
+    } else {
+      if (frame) {
+        frame.classList.remove('pc-expanded');
+        frame.classList.remove('edit-light-theme');
+      }
+    }
   } else {
     tabCompile.classList.remove('active');
     tabDrafts.classList.add('active');
     compileView.style.display = 'none';
     draftsView.style.display = 'block';
-    if (frame) frame.classList.add('pc-expanded');
+    if (frame) {
+      frame.classList.add('pc-expanded');
+      frame.classList.remove('edit-light-theme');
+    }
     loadDrafts();
   }
 }

@@ -1498,3 +1498,144 @@ body {
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
+/* ==========================================================================
+   EDIT LIGHT THEME OVERRIDES
+   ========================================================================== */
+.smartphone-frame.edit-light-theme {
+  --bg-screen: hsl(210, 20%, 98%);
+  --card-glass: hsla(210, 20%, 90%, 0.85);
+  --card-glass-hover: hsla(210, 20%, 85%, 0.95);
+  --border-glass: hsla(210, 10%, 80%, 0.5);
+  
+  --text-primary: hsl(220, 25%, 12%);
+  --text-secondary: hsl(220, 15%, 35%);
+  --text-muted: hsl(220, 12%, 55%);
+}
+
+.edit-light-theme .app-header {
+  background-color: hsla(210, 20%, 93%, 0.95);
+  border-bottom-color: hsla(210, 10%, 80%, 0.6);
+}
+
+.edit-light-theme .tabs-bar {
+  background-color: hsla(210, 20%, 90%, 0.5);
+  border-bottom-color: hsla(210, 10%, 80%, 0.6);
+}
+
+.edit-light-theme .tab-btn {
+  color: hsl(220, 15%, 45%);
+}
+
+.edit-light-theme .tab-btn:hover {
+  background-color: hsla(210, 20%, 80%, 0.25);
+  color: hsl(220, 25%, 12%);
+}
+
+.edit-light-theme .tab-btn.active {
+  background-color: hsl(0, 0%, 100%);
+  color: hsl(220, 25%, 12%);
+  border-color: hsla(210, 10%, 80%, 0.6);
+}
+
+.edit-light-theme .card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.edit-light-theme .vocal-input-wrapper input,
+.edit-light-theme .vocal-input-wrapper select,
+.edit-light-theme .qty-field,
+.edit-light-theme .vat-field,
+.edit-light-theme .wh-field {
+  background-color: hsl(210, 20%, 95%);
+  border-color: hsla(210, 10%, 75%, 0.6);
+  color: hsl(220, 25%, 12%);
+}
+
+.edit-light-theme .vocal-input-wrapper input:focus,
+.edit-light-theme .vocal-input-wrapper select:focus {
+  background-color: hsl(0, 0%, 100%);
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 1px var(--accent-purple);
+}
+
+.edit-light-theme .vocal-input-wrapper select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%231e293b'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+}
+
+.edit-light-theme .article-row {
+  background-color: hsl(210, 20%, 93%);
+  border-color: hsla(210, 10%, 75%, 0.6);
+}
+
+.edit-light-theme .article-field {
+  background-color: hsl(0, 0%, 100%);
+  border-color: hsla(210, 10%, 75%, 0.6);
+}
+
+.edit-light-theme .article-field input,
+.edit-light-theme .article-field select {
+  color: hsl(220, 25%, 12%);
+}
+
+.edit-light-theme .article-field select option {
+  background-color: hsl(0, 0%, 100%);
+  color: hsl(220, 25%, 12%);
+}
+
+.edit-light-theme .btn-secondary,
+.edit-light-theme .secondary-btn,
+.edit-light-theme .cat-browse-btn {
+  background: hsla(220, 20%, 80%, 0.25);
+  border-color: hsla(210, 10%, 75%, 0.6);
+  color: hsl(220, 25%, 12%);
+}
+
+.edit-light-theme .btn-secondary:hover,
+.edit-light-theme .secondary-btn:hover,
+.edit-light-theme .cat-browse-btn:hover {
+  background: hsla(220, 20%, 80%, 0.45);
+}
+
+.edit-light-theme .mic-btn {
+  background-color: hsla(220, 20%, 80%, 0.25);
+  border-color: hsla(210, 10%, 75%, 0.6);
+  color: hsl(220, 25%, 12%);
+}
+
+.edit-light-theme .mic-btn:hover {
+  background-color: hsla(220, 20%, 80%, 0.45);
+  color: var(--accent-purple);
+}
+
+.edit-light-theme .autocomplete-list {
+  background-color: hsl(0, 0%, 100%);
+  border-color: hsla(210, 10%, 75%, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.edit-light-theme .suggestion-item {
+  color: hsl(220, 25%, 12%);
+  border-bottom-color: hsla(210, 10%, 90%, 0.6);
+}
+
+.edit-light-theme .suggestion-item:hover {
+  background-color: hsla(220, 20%, 80%, 0.15);
+}
+
+.edit-light-theme .suggestion-item strong {
+  color: var(--accent-purple);
+}
+
+.edit-light-theme .editing-banner {
+  border-color: hsl(38, 90%, 55%);
+}
+
+.edit-light-theme .editing-banner-text {
+  color: hsl(38, 90%, 40%);
+}
+
+.edit-light-theme .cancel-edit-btn {
+  color: hsl(38, 90%, 40%);
+}
+
