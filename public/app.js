@@ -1414,7 +1414,7 @@ function addProductFromCatalog(product, quantity) {
     idVat: '22',
     idPosType: 1,
     idMaterial: String(product.id || ''),
-    idWarehouse: null
+    idWarehouse: product.defaultStorage ? String(product.defaultStorage) : null
   };
   articlesList.push(article);
   renderArticles();

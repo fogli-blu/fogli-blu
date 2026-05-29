@@ -436,8 +436,14 @@ const server = http.createServer(async (req, res) => {
       const data = await requestGiobby('/warehouses', 'GET', null, {});
       sendJSON(res, 200, data.warehouses || []);
     } catch (err) {
-      console.error('[Proxy Error] Warehouses lookup failed:', err);
-      sendJSON(res, err.status || 500, { error: err.message || 'Errore ricerca magazzini.' });
+      console.warn('[Proxy Warning] Warehouses lookup failed, using static fallback:', err.message || err);
+      const fallback = [
+        { id: "MB", description: "Magazzino Bedizzole (MB)" },
+        { id: "CCIW", description: "Magazzino CCIW" },
+        { id: "PR 26", description: "Magazzino PR 26" },
+        { id: "CATALOGO", description: "Magazzino Catalogo" }
+      ];
+      sendJSON(res, 200, fallback);
     }
     return;
   }

@@ -316,11 +316,25 @@ export default async (req, context) => {
 
     // 5. ROUTE: GET /api/warehouses
     if (pathname === '/api/warehouses' && req.method === 'GET') {
-      const data = await requestGiobby('/warehouses', 'GET', null, {});
-      return new Response(JSON.stringify(data.warehouses || []), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      try {
+        const data = await requestGiobby('/warehouses', 'GET', null, {});
+        return new Response(JSON.stringify(data.warehouses || []), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch (err) {
+        console.warn('[Netlify Warning] Warehouses lookup failed, using static fallback:', err.message || err);
+        const fallback = [
+          { id: "MB", description: "Magazzino Bedizzole (MB)" },
+          { id: "CCIW", description: "Magazzino CCIW" },
+          { id: "PR 26", description: "Magazzino PR 26" },
+          { id: "CATALOGO", description: "Magazzino Catalogo" }
+        ];
+        return new Response(JSON.stringify(fallback), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // 6. ROUTE: POST /api/goodsissue
