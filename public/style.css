@@ -279,9 +279,23 @@ body {
   margin-bottom: 4px;
 }
 
-/* ----------------------------------------------------
-   FORM INPUTS & VOCAL WRAPPERS
-   ---------------------------------------------------- */
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+@media (min-width: 481px) {
+  .form-row {
+    flex-direction: row;
+  }
+  .form-row .input-group {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
 .input-group {
   display: flex;
   flex-direction: column;
