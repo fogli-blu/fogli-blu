@@ -1915,7 +1915,7 @@ async function loadAllProducts() {
   // Try client-side cache first
   const cached = getCachedProducts({ limit: 100 });
   if (cached !== null) {
-    renderProductList(cached);
+    renderFbProductList(cached);
     return;
   }
 
@@ -1923,7 +1923,7 @@ async function loadAllProducts() {
     const res = await fetch('/api/products?limit=100');
     if (!res.ok) throw new Error(`Errore ${res.status}`);
     const products = await res.json();
-    renderProductList(products);
+    renderFbProductList(products);
   } catch (e) {
     catbrowserBody.innerHTML = `<div class="catbrowser-error">Impossibile caricare i prodotti.<br><small>${e.message}</small></div>`;
   }
@@ -1982,7 +1982,7 @@ async function searchProductsLocally(query) {
     limit: 100
   });
   if (cached !== null) {
-    renderProductList(cached);
+    renderFbProductList(cached);
     return;
   }
 
@@ -1990,7 +1990,7 @@ async function searchProductsLocally(query) {
     const res = await fetch(`/api/products?q=${encodeURIComponent(query)}${catParam}`);
     if (!res.ok) throw new Error(`Status ${res.status}`);
     const products = await res.json();
-    renderProductList(products);
+    renderFbProductList(products);
   } catch (err) {
     catbrowserBody.innerHTML = `<div class="catbrowser-error">Errore di ricerca.<br><small>${err.message}</small></div>`;
   }
@@ -2010,7 +2010,7 @@ async function loadProductsByCategory(cat) {
     limit: 1000
   });
   if (cached !== null) {
-    renderProductList(cached);
+    renderFbProductList(cached);
     addLog('success', `Prodotti: ${cached.length} trovati in "${catName}" (da cache locale).`);
     return;
   }
@@ -2019,7 +2019,7 @@ async function loadProductsByCategory(cat) {
     const res = await fetch(`/api/products?idCategory=${encodeURIComponent(cat.id)}`);
     if (!res.ok) throw new Error(`Errore ${res.status}`);
     const products = await res.json();
-    renderProductList(products);
+    renderFbProductList(products);
     addLog('success', `Prodotti: ${products.length} trovati in "${catName}".`);
   } catch (e) {
     catbrowserBody.innerHTML = `<div class="catbrowser-error">Impossibile caricare i prodotti.<br><small>${e.message}</small></div>`;
@@ -2171,7 +2171,7 @@ async function checkProductsSyncStatus() {
   }
 }
 
-function renderProductList(products) {
+function renderFbProductList(products) {
   catbrowserBody.innerHTML = '';
   if (!products || products.length === 0) {
     catbrowserBody.innerHTML = '<div class="catbrowser-empty">Nessun prodotto trovato.<br><br><a href="https://app.giobby.com/Giobby00553/company/Material.xhtml?ftrID=mat_n" target="_blank" class="catbrowser-new-product-link">➕ Aggiungi nuovo prodotto su Giobby</a></div>';
