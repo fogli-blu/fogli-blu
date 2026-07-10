@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vocalddt-v9';
+const CACHE_NAME = 'vocalddt-v10';
 
 // Solo risorse statiche non cambiano spesso (icone, manifest)
 const STATIC_ASSETS = [
