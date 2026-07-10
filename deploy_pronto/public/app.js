@@ -2194,12 +2194,10 @@ function renderProductList(products) {
   }
 
   // Filter by selected/flagged warehouses
-  if (selectedWhs.length > 0) {
-    filtered = filtered.filter(p => {
-      const whCode = p.defaultStorage || 'MB';
-      return selectedWhs.includes(whCode);
-    });
-  }
+  filtered = filtered.filter(p => {
+    const whCode = p.defaultStorage || 'MB';
+    return selectedWhs.includes(whCode);
+  });
 
   if (filtered.length === 0) {
     catbrowserBody.innerHTML = '<div class="catbrowser-empty">Nessun prodotto trovato.<br><br><a href="https://app.giobby.com/Giobby00553/company/Material.xhtml?ftrID=mat_n" target="_blank" class="catbrowser-new-product-link">➕ Aggiungi nuovo prodotto su Giobby</a></div>';
@@ -2260,9 +2258,6 @@ function renderProductList(products) {
     // Price display logic
     let pricesMarkup = '';
     const prices = prod.prices || {};
-    const pAcq = prices.acquisto !== null && prices.acquisto !== undefined
-      ? `€ ${parseFloat(prices.acquisto).toFixed(2)}`
-      : '€ —';
     const pPriv = prices.privati !== null && prices.privati !== undefined
       ? `€ ${parseFloat(prices.privati).toFixed(2)}`
       : '€ —';
@@ -2275,10 +2270,9 @@ function renderProductList(products) {
     
     pricesMarkup = `
       <div class="prod-prices-wrap">
-        <span class="price-badge price-acquisto" title="Listino Prezzi Acquisto (ID 29)">Acq: <strong>${pAcq}</strong></span>
-        <span class="price-badge price-privati" title="Listino Privati Nuovo (ID 34)">Priv: <strong>${pPriv}</strong></span>
-        <span class="price-badge price-posatori" title="Listino Artigiani Nuovo (ID 31)">Pos: <strong>${pPos}</strong></span>
-        <span class="price-badge price-bologna" title="Listino Bologna Nuovo (ID 32)">Bol: <strong>${pBol}</strong></span>
+        <span class="price-badge price-privati" title="Listino Privati (ID 26)">Privati: <strong>${pPriv}</strong></span>
+        <span class="price-badge price-posatori" title="Listino Posatori PR + BO (ID 27)">Posatori: <strong>${pPos}</strong></span>
+        <span class="price-badge price-bologna" title="Listino Parquet Bologna (ID 24)">Bologna: <strong>${pBol}</strong></span>
       </div>
     `;
 

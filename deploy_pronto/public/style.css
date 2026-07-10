@@ -1334,39 +1334,22 @@ body {
 .badge-stock.simulated { border-style: dashed; }
 .prod-prices-wrap {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   margin-top: 6px;
-  font-size: 0.64rem;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  font-size: 0.68rem;
+  flex-wrap: wrap;
 }
 .price-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.64rem;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.68rem;
   font-weight: 500;
-  white-space: nowrap;
 }
 .price-badge strong {
   font-weight: 700;
-  filter: blur(3.5px);
-  user-select: none;
-  transition: filter 0.15s ease-in-out;
-}
-.price-badge:hover strong {
-  filter: none;
-  user-select: auto;
-}
-.price-badge.price-acquisto {
-  background: rgba(71, 85, 105, 0.08);
-  border: 1px solid rgba(71, 85, 105, 0.25);
-  color: #475569;
-}
-.price-badge.price-acquisto strong {
-  color: #475569;
 }
 .price-badge.price-privati {
   background: rgba(14, 165, 233, 0.08);

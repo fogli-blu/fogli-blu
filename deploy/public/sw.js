@@ -40,8 +40,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Bypass cache per richieste esterne (CORS / Giobby API) o API locali
-  if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  // Bypass cache per API
+  if (url.pathname.startsWith('/api/')) return;
 
   // Network-first per HTML, CSS e JS (modifiche immediate)
   if (

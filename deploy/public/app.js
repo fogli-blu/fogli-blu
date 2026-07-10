@@ -38,11 +38,9 @@ const clearClienteBtn = document.getElementById('clear-cliente-btn');
 const tabCompile = document.getElementById('tab-compile');
 const tabDrafts = document.getElementById('tab-drafts');
 const tabHistory = document.getElementById('tab-history');
-const tabReorder = document.getElementById('tab-reorder');
 const compileView = document.getElementById('compile-view');
 const draftsView = document.getElementById('drafts-view');
 const historyView = document.getElementById('history-view');
-const reorderView = document.getElementById('reorder-view');
 const editingBanner = document.getElementById('editing-banner');
 const editingDraftInfo = document.getElementById('editing-draft-info');
 const cancelEditBtn = document.getElementById('cancel-edit-btn');
@@ -52,7 +50,6 @@ const selectAllDraftsChk = document.getElementById('select-all-drafts-chk');
 
 const dataInput = document.getElementById('data-input');
 const causaleSelect = document.getElementById('causale-select');
-const listinoSelect = document.getElementById('listino-select');
 const articleVocalInput = document.getElementById('articolo-vocal-input');
 const articlesContainer = document.getElementById('articles-container');
 const articleCountBadge = document.getElementById('article-count');
@@ -517,13 +514,6 @@ function updateArticleWarehouse(id, whId) {
   }
 }
 
-function updateArticlePrice(id, price) {
-  const art = articlesList.find(a => a.id === id);
-  if (art) {
-    art.price = price !== '' ? parseFloat(price) : null;
-  }
-}
-
 function renderArticles() {
   articlesContainer.innerHTML = '';
   articleCountBadge.textContent = `${articlesList.length} articoli`;
@@ -536,15 +526,10 @@ function renderArticles() {
     return;
   }
   
-  const listinoVal = listinoSelect ? listinoSelect.value : '';
-
   articlesList.forEach(a => {
     const row = document.createElement('div');
     row.className = 'article-row';
     
-    const autoPrice = getArticlePriceForListino(a, listinoVal);
-    const placeholderText = autoPrice !== null ? autoPrice.toFixed(2) : 'Auto';
-
     row.innerHTML = `
       <div class="article-header">
         <div class="article-desc">${a.description}</div>
@@ -571,16 +556,12 @@ function renderArticles() {
         </div>
       </div>
       <div class="article-warehouse-row">
-        <div class="article-field wh-field-wrap" style="flex: 1;">
+        <div class="article-field wh-field-wrap">
           <span>🏭</span>
           <select class="wh-field" data-id="${a.id}">
             <option value="">— Magazzino —</option>
             ${warehousesList.map(w => `<option value="${w.id}" ${a.idWarehouse === String(w.id) ? 'selected' : ''}>${w.description || w.id}</option>`).join('')}
           </select>
-        </div>
-        <div class="article-field price-field-wrap">
-          <span>€:</span>
-          <input type="number" class="price-field" value="${a.price !== undefined && a.price !== null ? a.price : ''}" step="any" placeholder="${placeholderText}" style="width: 70px;" data-id="${a.id}">
         </div>
       </div>
     `;
@@ -594,9 +575,6 @@ function renderArticles() {
     });
     row.querySelector('.wh-field').addEventListener('change', (e) => {
       updateArticleWarehouse(a.id, e.target.value);
-    });
-    row.querySelector('.price-field').addEventListener('input', (e) => {
-      updateArticlePrice(a.id, e.target.value);
     });
     row.querySelector('.delete-article-btn').addEventListener('click', () => {
       removeArticle(a.id);
@@ -859,9 +837,6 @@ function resetForm() {
   selectedClienteBadge.style.display = 'none';
   clienteInput.style.display = 'block';
   clienteInput.value = '';
-  if (listinoSelect) {
-    listinoSelect.value = '';
-  }
   clearEditingMode();
 }
 
@@ -872,30 +847,8 @@ inviaBtn.addEventListener('click', () => submitDDT(false));
 // DRAFTS SYSTEM (LOCAL & LOCALSTORAGE SYNC)
 // ====================================================
 
-function getArticlePriceForListino(article, listinoId) {
-  if (!article.prices) return null;
-  const p = article.prices;
-  switch (String(listinoId)) {
-    case '26': // Privati
-      return p.privati;
-    case '27': // Posatori
-      return p.posatori;
-    case '24': // Bologna
-      return p.bologna;
-    case '10': // Parquettisti (raw listino 10)
-      return p.l10 !== undefined && p.l10 !== null ? p.l10 : (p.privati ? parseFloat((p.privati / 1.35).toFixed(4)) : null);
-    case '22': // Parquet Bologna (raw listino 22)
-      return p.l22 !== undefined && p.l22 !== null ? p.l22 : (p.bologna ? p.bologna : null);
-    case '28': // Prova Giobby (raw listino 28)
-      return p.l28 !== undefined && p.l28 !== null ? p.l28 : (p.bologna ? p.bologna : null);
-    default:
-      return null;
-  }
-}
-
 function buildPayload(customer, docDate, causale, articles) {
-  const listinoVal = listinoSelect ? listinoSelect.value : '';
-  const payload = {
+  return {
     _customerName: customer.name, // Custom property for history logging
     idDocumentType: 1,
     idDocumentTypeExt: 0,
@@ -905,26 +858,15 @@ function buildPayload(customer, docDate, causale, articles) {
     docDate: docDate,
     idNumerator: 1, // Numerator 'Num 1' standard for the account
     idBu: "U1",
-    rows: articles.map((a, index) => {
-      const priceVal = (a.price !== undefined && a.price !== null) ? a.price : getArticlePriceForListino(a, listinoVal);
-      const row = {
-        idPos: index + 1,
-        idMaterial: a.idMaterial || null,
-        idPosType: 1,
-        quantity: a.quantity,
-        idVat: a.idVat,
-        description: a.description,
-        ...(a.idWarehouse ? { idWarehouse: a.idWarehouse } : {})
-      };
-      if (priceVal !== null && priceVal !== undefined) {
-        row.priceSales = priceVal;
-        row.unitPrice = priceVal;
-        row.price = priceVal;
-        row.netPrice = priceVal;
-        row.taxableAmount = priceVal;
-      }
-      return row;
-    }),
+    rows: articles.map((a, index) => ({
+      idPos: index + 1,
+      idMaterial: a.idMaterial || null,
+      idPosType: 1,
+      quantity: a.quantity,
+      idVat: a.idVat,
+      description: a.description,
+      ...(a.idWarehouse ? { idWarehouse: a.idWarehouse } : {})
+    })),
     deliveryData: {
       reason: causale,
       idReasonType: -1, // personalizzato/custom reason text
@@ -933,12 +875,6 @@ function buildPayload(customer, docDate, causale, articles) {
       idDeliveredBy: 2 // standard A mezzo Destinatario
     }
   };
-
-  if (listinoVal) {
-    payload.idPricelist = parseInt(listinoVal, 10);
-  }
-
-  return payload;
 }
 
 async function postDDTToGiobby(payload) {
@@ -1086,20 +1022,16 @@ async function saveDraft() {
   const docDate = dataInput.value;
   const causale = causaleSelect.value;
   
-  const listinoVal = listinoSelect ? listinoSelect.value : '';
   const draft = {
     data: docDate,
     causale: causale,
-    idPricelist: listinoVal ? parseInt(listinoVal, 10) : null,
     selectedCustomer: selectedCustomer,
     articles: articlesList.map(a => ({
       quantity: a.quantity,
       description: a.description,
       idVat: a.idVat,
       idMaterial: a.idMaterial || null,
-      idWarehouse: a.idWarehouse || null,
-      prices: a.prices || null,
-      price: a.price !== undefined ? a.price : null
+      idWarehouse: a.idWarehouse || null
     }))
   };
   
@@ -1164,10 +1096,6 @@ function editDraft(d) {
   if (!matched) {
     causaleSelect.selectedIndex = 0;
   }
-
-  if (listinoSelect) {
-    listinoSelect.value = d.idPricelist ? String(d.idPricelist) : '';
-  }
   
   articlesList = (d.articles || []).map(a => ({
     id: Date.now() + Math.random().toString(36).substr(2, 5) + Math.random().toString(36).substr(2, 2),
@@ -1176,9 +1104,7 @@ function editDraft(d) {
     idVat: a.idVat || '22',
     idPosType: 1,
     idMaterial: a.idMaterial || null,
-    idWarehouse: a.idWarehouse || null,
-    prices: a.prices || {},
-    price: a.price !== undefined ? a.price : null
+    idWarehouse: a.idWarehouse || null
   }));
   
   renderArticles();
@@ -1491,11 +1417,9 @@ function setActiveTab(tab) {
     tabCompile.classList.add('active');
     tabDrafts.classList.remove('active');
     if (tabHistory) tabHistory.classList.remove('active');
-    if (tabReorder) tabReorder.classList.remove('active');
     compileView.style.display = 'block';
     draftsView.style.display = 'none';
     if (historyView) historyView.style.display = 'none';
-    if (reorderView) reorderView.style.display = 'none';
     if (currentEditingDraftId) {
       if (frame) {
         frame.classList.add('pc-expanded');
@@ -1511,11 +1435,9 @@ function setActiveTab(tab) {
     tabCompile.classList.remove('active');
     tabDrafts.classList.add('active');
     if (tabHistory) tabHistory.classList.remove('active');
-    if (tabReorder) tabReorder.classList.remove('active');
     compileView.style.display = 'none';
     draftsView.style.display = 'block';
     if (historyView) historyView.style.display = 'none';
-    if (reorderView) reorderView.style.display = 'none';
     if (frame) {
       frame.classList.add('pc-expanded');
       frame.classList.remove('edit-light-theme');
@@ -1525,47 +1447,28 @@ function setActiveTab(tab) {
     tabCompile.classList.remove('active');
     tabDrafts.classList.remove('active');
     if (tabHistory) tabHistory.classList.add('active');
-    if (tabReorder) tabReorder.classList.remove('active');
     compileView.style.display = 'none';
     draftsView.style.display = 'none';
     if (historyView) historyView.style.display = 'block';
-    if (reorderView) reorderView.style.display = 'none';
     if (frame) {
       frame.classList.add('pc-expanded');
       frame.classList.remove('edit-light-theme');
     }
     loadHistory();
-  } else if (tab === 'reorder') {
-    tabCompile.classList.remove('active');
-    tabDrafts.classList.remove('active');
-    if (tabHistory) tabHistory.classList.remove('active');
-    if (tabReorder) tabReorder.classList.add('active');
-    compileView.style.display = 'none';
-    draftsView.style.display = 'none';
-    if (historyView) historyView.style.display = 'none';
-    if (reorderView) reorderView.style.display = 'block';
-    if (frame) {
-      frame.classList.add('pc-expanded');
-      frame.classList.remove('edit-light-theme');
-    }
-    loadReorderList();
   }
   // Sync sidebar nav items
   const sidebarCompile = document.getElementById('sidebar-nav-compile');
   const sidebarDrafts  = document.getElementById('sidebar-nav-drafts');
   const sidebarHistory = document.getElementById('sidebar-nav-history');
-  const sidebarReorder = document.getElementById('sidebar-nav-reorder');
   if (sidebarCompile) sidebarCompile.classList.toggle('active', tab === 'compile');
   if (sidebarDrafts)  sidebarDrafts.classList.toggle('active',  tab === 'drafts');
   if (sidebarHistory) sidebarHistory.classList.toggle('active', tab === 'history');
-  if (sidebarReorder) sidebarReorder.classList.toggle('active', tab === 'reorder');
 }
 
 // BIND TABS AND ACTION BUTTON LISTENERS
 tabCompile.addEventListener('click', () => setActiveTab('compile'));
 tabDrafts.addEventListener('click', () => setActiveTab('drafts'));
 if (tabHistory) tabHistory.addEventListener('click', () => setActiveTab('history'));
-if (tabReorder) tabReorder.addEventListener('click', () => setActiveTab('reorder'));
 saveDraftBtn.addEventListener('click', saveDraft);
 bulkSendBtn.addEventListener('click', sendBulkDrafts);
 
@@ -1574,12 +1477,10 @@ const sidebarNavCompile = document.getElementById('sidebar-nav-compile');
 const sidebarNavDrafts  = document.getElementById('sidebar-nav-drafts');
 const sidebarNavDevlog  = document.getElementById('sidebar-nav-devlog');
 const sidebarNavHistory = document.getElementById('sidebar-nav-history');
-const sidebarNavReorder = document.getElementById('sidebar-nav-reorder');
 
 if (sidebarNavCompile) sidebarNavCompile.addEventListener('click', () => setActiveTab('compile'));
 if (sidebarNavDrafts)  sidebarNavDrafts.addEventListener('click',  () => setActiveTab('drafts'));
 if (sidebarNavHistory) sidebarNavHistory.addEventListener('click', () => setActiveTab('history'));
-if (sidebarNavReorder) sidebarNavReorder.addEventListener('click', () => setActiveTab('reorder'));
 if (sidebarNavDevlog)  sidebarNavDevlog.addEventListener('click',  () => {
   devPanel.classList.toggle('expanded');
 });
@@ -2194,12 +2095,10 @@ function renderProductList(products) {
   }
 
   // Filter by selected/flagged warehouses
-  if (selectedWhs.length > 0) {
-    filtered = filtered.filter(p => {
-      const whCode = p.defaultStorage || 'MB';
-      return selectedWhs.includes(whCode);
-    });
-  }
+  filtered = filtered.filter(p => {
+    const whCode = p.defaultStorage || 'MB';
+    return selectedWhs.includes(whCode);
+  });
 
   if (filtered.length === 0) {
     catbrowserBody.innerHTML = '<div class="catbrowser-empty">Nessun prodotto trovato.<br><br><a href="https://app.giobby.com/Giobby00553/company/Material.xhtml?ftrID=mat_n" target="_blank" class="catbrowser-new-product-link">➕ Aggiungi nuovo prodotto su Giobby</a></div>';
@@ -2260,9 +2159,6 @@ function renderProductList(products) {
     // Price display logic
     let pricesMarkup = '';
     const prices = prod.prices || {};
-    const pAcq = prices.acquisto !== null && prices.acquisto !== undefined
-      ? `€ ${parseFloat(prices.acquisto).toFixed(2)}`
-      : '€ —';
     const pPriv = prices.privati !== null && prices.privati !== undefined
       ? `€ ${parseFloat(prices.privati).toFixed(2)}`
       : '€ —';
@@ -2275,10 +2171,9 @@ function renderProductList(products) {
     
     pricesMarkup = `
       <div class="prod-prices-wrap">
-        <span class="price-badge price-acquisto" title="Listino Prezzi Acquisto (ID 29)">Acq: <strong>${pAcq}</strong></span>
-        <span class="price-badge price-privati" title="Listino Privati Nuovo (ID 34)">Priv: <strong>${pPriv}</strong></span>
-        <span class="price-badge price-posatori" title="Listino Artigiani Nuovo (ID 31)">Pos: <strong>${pPos}</strong></span>
-        <span class="price-badge price-bologna" title="Listino Bologna Nuovo (ID 32)">Bol: <strong>${pBol}</strong></span>
+        <span class="price-badge price-privati" title="Listino Privati (ID 26)">Privati: <strong>${pPriv}</strong></span>
+        <span class="price-badge price-posatori" title="Listino Posatori PR + BO (ID 27)">Posatori: <strong>${pPos}</strong></span>
+        <span class="price-badge price-bologna" title="Listino Parquet Bologna (ID 24)">Bologna: <strong>${pBol}</strong></span>
       </div>
     `;
 
@@ -2299,10 +2194,6 @@ function renderProductList(products) {
         ${pricesMarkup}
       </div>
       <div class="prod-actions-wrap" style="display: flex; align-items: center;">
-        <label class="prod-reorder-checkbox-wrap" onclick="event.stopPropagation();" title="Seleziona per ordinare manualmente questo prodotto">
-          <input type="checkbox" class="prod-reorder-chk" data-sku="${code}" ${prod.ordina ? 'checked' : ''}>
-          <span>Ordina</span>
-        </label>
         ${obsoleteButtonMarkup}
         <a class="prod-giobby-link-btn" href="${prod.giobbyUrl || '#'}" target="_blank" title="Apri anagrafica su Giobby" onclick="event.stopPropagation();">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2310,14 +2201,6 @@ function renderProductList(products) {
             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </a>
-        <button class="prod-delete-btn" title="Elimina Prodotto dall'inventario" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; margin-right: 6px; cursor: pointer; transition: all 0.2s;" onclick="event.stopPropagation(); deleteProductFromFogliBlu('${code}');">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width: 16px; height: 16px;">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            <line x1="10" y1="11" x2="10" y2="17"></line>
-            <line x1="14" y1="11" x2="14" y2="17"></line>
-          </svg>
-        </button>
         <button class="prod-add-btn" title="Aggiungi">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/>
@@ -2331,15 +2214,6 @@ function renderProductList(products) {
       e.stopPropagation();
       startVoiceQuantity(prod);
     });
-
-    const reorderChk = item.querySelector('.prod-reorder-chk');
-    if (reorderChk) {
-      reorderChk.addEventListener('change', (e) => {
-        const checked = e.target.checked;
-        prod.ordina = checked;
-        toggleManualReorder(code, checked);
-      });
-    }
 
     const toggleBtn = item.querySelector('.prod-obsolete-toggle-btn');
     if (toggleBtn) {
@@ -2805,8 +2679,7 @@ function addProductFromCatalog(product, quantity) {
     idVat: '22',
     idPosType: 1,
     idMaterial: String(product.id || ''),
-    idWarehouse: product.defaultStorage ? String(product.defaultStorage) : null,
-    prices: product.prices || {}
+    idWarehouse: product.defaultStorage ? String(product.defaultStorage) : null
   };
   articlesList.push(article);
   renderArticles();
@@ -2900,8 +2773,7 @@ function addLocalHistoryEntry(payload, responseData, customerName) {
       description: r.description,
       quantity: r.quantity,
       idVat: r.idVat || '22',
-      idWarehouse: r.idWarehouse || null,
-      price: r.priceSales || r.unitPrice || r.price || null
+      idWarehouse: r.idWarehouse || null
     })) : [];
 
     const newEntry = {
@@ -2912,7 +2784,6 @@ function addLocalHistoryEntry(payload, responseData, customerName) {
       idContact: payload.idContact || null,
       customerName: customerName,
       causale: causale,
-      idPricelist: payload.idPricelist || null,
       numArticles: numArticles,
       articles: articles,
       createdAt: new Date().toISOString()
@@ -2976,12 +2847,9 @@ async function loadHistory() {
         let itemsSummary = '';
         const articlesListToSummary = item.articles || item.items || [];
         if (articlesListToSummary.length > 0) {
-          itemsSummary = articlesListToSummary.map(a => {
-            const priceText = (a.price !== null && a.price !== undefined) ? ` (€ ${parseFloat(a.price).toFixed(2)})` : '';
-            return `${a.quantity}x ${a.description}${priceText}`;
-          }).join(', ');
-          if (itemsSummary.length > 110) {
-            itemsSummary = itemsSummary.substring(0, 107) + '...';
+          itemsSummary = articlesListToSummary.map(a => `${a.quantity}x ${a.description}`).join(', ');
+          if (itemsSummary.length > 80) {
+            itemsSummary = itemsSummary.substring(0, 77) + '...';
           }
         } else {
           itemsSummary = 'Nessun articolo';
@@ -3136,10 +3004,6 @@ function editHistoryItem(item) {
   if (!matched) {
     causaleSelect.selectedIndex = 0;
   }
-
-  if (listinoSelect) {
-    listinoSelect.value = item.idPricelist ? String(item.idPricelist) : '';
-  }
   
   const articlesToLoad = item.articles || item.items || [];
   articlesList = articlesToLoad.map(a => ({
@@ -3149,9 +3013,7 @@ function editHistoryItem(item) {
     idVat: a.idVat || '22',
     idPosType: 1,
     idMaterial: a.idMaterial || null,
-    idWarehouse: a.idWarehouse || null,
-    prices: a.prices || (a.price !== undefined ? { privati: a.price, posatori: a.price, bologna: a.price } : {}),
-    price: a.price !== undefined ? a.price : null
+    idWarehouse: a.idWarehouse || null
   }));
   
   renderArticles();
@@ -3557,12 +3419,6 @@ if (urlParams.get('view') === 'history') {
   loadHistory();
 }
 
-if (listinoSelect) {
-  listinoSelect.addEventListener('change', () => {
-    renderArticles();
-  });
-}
-
 // Automatic synchronization of history across different tabs/windows
 window.addEventListener('storage', (event) => {
   if (event.key === 'ddt_history_updated' || event.key === 'storico_ddt') {
@@ -3570,209 +3426,4 @@ window.addEventListener('storage', (event) => {
     loadHistory();
   }
 });
-
-// ====================================================
-// FLUSSO RIORDINO E GESTIONE PRODOTTI
-// ====================================================
-
-async function loadReorderList() {
-  const container = document.getElementById('reorder-list-container');
-  if (!container) return;
-  
-  container.innerHTML = '<tr><td colspan="8" style="padding: 20px; text-align: center;"><div class="spinner" style="margin: 0 auto 10px auto;"></div>Caricamento della lista di riordino...</td></tr>';
-  
-  try {
-    const res = await fetch('/api/products/reorder');
-    if (!res.ok) throw new Error(`Errore ${res.status}`);
-    const list = await res.json();
-    
-    if (list.length === 0) {
-      container.innerHTML = '<tr><td colspan="8" style="padding: 20px; text-align: center; color: var(--text-muted);">Nessun articolo da riordinare al momento.</td></tr>';
-      return;
-    }
-    
-    container.innerHTML = '';
-    list.forEach(item => {
-      const tr = document.createElement('tr');
-      tr.style.borderBottom = '1px solid var(--border-glass)';
-      
-      const badgeClass = item.isManual ? 'reorder-type-manual' : 'reorder-type-auto';
-      const badgeText = item.isManual ? 'Manuale' : 'Sotto Scorta';
-      
-      tr.innerHTML = `
-        <td style="padding: 12px; font-weight: 500; font-family: monospace;">${item.id}</td>
-        <td style="padding: 12px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${item.description}">${item.description}</td>
-        <td style="padding: 12px; color: var(--text-muted);">${item.category}</td>
-        <td style="padding: 12px; text-align: center; color: var(--text-muted);">${item.storage}</td>
-        <td style="padding: 12px; text-align: right; font-weight: bold;">${item.currentQty}</td>
-        <td style="padding: 12px; text-align: right; color: var(--text-muted);">${item.minStock}</td>
-        <td style="padding: 12px; text-align: right; font-weight: bold; color: #f87171;">${item.deficit}</td>
-        <td style="padding: 12px; text-align: center;">
-          <span class="reorder-type-badge ${badgeClass}">${badgeText}</span>
-        </td>
-      `;
-      container.appendChild(tr);
-    });
-  } catch (err) {
-    container.innerHTML = `<tr><td colspan="8" style="padding: 20px; text-align: center; color: #f87171;">Impossibile caricare il riordino: ${err.message}</td></tr>`;
-  }
-}
-
-// Esporta CSV per Excel
-const btnDownloadReorderCsv = document.getElementById('btn-download-reorder-csv');
-if (btnDownloadReorderCsv) {
-  btnDownloadReorderCsv.addEventListener('click', () => {
-    window.location.href = '/api/products/reorder?excel=true';
-  });
-}
-
-// Toggle flag Ordina
-async function toggleManualReorder(sku, ordina) {
-  try {
-    const res = await fetch('/api/products/reorder-manual', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku, ordina })
-    });
-    if (res.ok) {
-      addLog('success', `Flag Ordina per ${sku} aggiornato a ${ordina}`);
-    } else {
-      const err = await res.json();
-      alert(`Impossibile modificare il riordino manuale: ${err.error}`);
-    }
-  } catch (e) {
-    console.error('Failed to toggle manual reorder:', e);
-  }
-}
-window.toggleManualReorder = toggleManualReorder;
-
-// Elimina Prodotto da Fogli blu
-async function deleteProductFromFogliBlu(sku) {
-  if (confirm(`Sei sicuro di voler eliminare definitivamente il prodotto "${sku}" dall'inventario?\n\nQuesta operazione rimuoverà il prodotto sia da Fogli blu che da Inventario.`)) {
-    try {
-      const res = await fetch(`/api/products?id=${encodeURIComponent(sku)}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        addLog('success', `Prodotto ${sku} eliminato con successo.`);
-        alert(`Prodotto ${sku} eliminato.`);
-        
-        // Ricarica la vista corrente
-        const query = catbrowserSearchInput ? catbrowserSearchInput.value.trim() : '';
-        if (query.length >= 2) {
-          searchProductsLocally(query);
-        } else if (currentCategoryView) {
-          loadProductsByCategory(currentCategoryView);
-        } else {
-          loadAllProducts();
-        }
-      } else {
-        const err = await res.json();
-        alert(`Errore eliminazione: ${err.error}`);
-      }
-    } catch (e) {
-      alert(`Errore connessione: ${e.message}`);
-    }
-  }
-}
-window.deleteProductFromFogliBlu = deleteProductFromFogliBlu;
-
-// Nuovo Prodotto Modale
-const newProductModal = document.getElementById('new-product-modal');
-const newProdCancel = document.getElementById('new-prod-cancel');
-const newProdForm = document.getElementById('new-prod-form');
-const catbrowserNewProdBtn = document.getElementById('catbrowser-new-prod-btn');
-
-if (catbrowserNewProdBtn) {
-  catbrowserNewProdBtn.removeAttribute('href');
-  catbrowserNewProdBtn.removeAttribute('target');
-  catbrowserNewProdBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    openNewProductModal();
-  });
-}
-
-function openNewProductModal() {
-  const backdrop = document.getElementById('modal-backdrop');
-  if (backdrop && newProductModal) {
-    document.getElementById('success-modal').style.display = 'none';
-    document.getElementById('error-modal').style.display = 'none';
-    document.getElementById('confirm-warehouse-modal').style.display = 'none';
-    
-    newProductModal.style.display = 'block';
-    backdrop.classList.add('active');
-    
-    document.getElementById('new-prod-sku').value = '';
-    document.getElementById('new-prod-desc').value = '';
-    document.getElementById('new-prod-loc').value = 'MB';
-    document.getElementById('new-prod-cat').value = 'Generale';
-    document.getElementById('new-prod-qty').value = '0';
-    document.getElementById('new-prod-sales-price').value = '0';
-  }
-}
-
-function closeNewProductModal() {
-  const backdrop = document.getElementById('modal-backdrop');
-  if (backdrop && newProductModal) {
-    newProductModal.style.display = 'none';
-    backdrop.classList.remove('active');
-  }
-}
-
-if (newProdCancel) {
-  newProdCancel.addEventListener('click', closeNewProductModal);
-}
-
-if (newProdForm) {
-  newProdForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const sku = document.getElementById('new-prod-sku').value.trim();
-    const desc = document.getElementById('new-prod-desc').value.trim();
-    const loc = document.getElementById('new-prod-loc').value.trim();
-    const cat = document.getElementById('new-prod-cat').value.trim();
-    const qty = parseFloat(document.getElementById('new-prod-qty').value) || 0;
-    const salesPrice = parseFloat(document.getElementById('new-prod-sales-price').value) || 0;
-    
-    if (!sku || !desc) {
-      alert('Codice e Descrizione sono obbligatori.');
-      return;
-    }
-    
-    const saveBtn = document.getElementById('new-prod-save');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Salvataggio...';
-    
-    try {
-      const res = await fetch('/api/products', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sku, desc, loc, cat, qty, salesPrice })
-      });
-      if (res.ok) {
-        addLog('success', `Nuovo prodotto ${sku} creato con successo.`);
-        closeNewProductModal();
-        alert(`Prodotto ${sku} creato con successo.`);
-        
-        // Ricarica la vista
-        const query = catbrowserSearchInput ? catbrowserSearchInput.value.trim() : '';
-        if (query.length >= 2) {
-          searchProductsLocally(query);
-        } else if (currentCategoryView) {
-          loadProductsByCategory(currentCategoryView);
-        } else {
-          loadAllProducts();
-        }
-      } else {
-        const err = await res.json();
-        alert(`Errore creazione prodotto: ${err.error}`);
-      }
-    } catch (err) {
-      alert(`Errore connessione: ${err.message}`);
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Salva Prodotto';
-    }
-  });
-}
 

@@ -1,0 +1,15 @@
+{
+  "name": "giobby-vocal-ddt",
+  "version": "1.0.0",
+  "description": "Vocal DDT compiler for Giobby ERP (Zero Dependencies Native Node)",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {}
+}

@@ -79,15 +79,6 @@
             </button>
           </div>
 
-          <div class="sidebar-nav-item" id="sidebar-nav-reorder" role="button" tabindex="0">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px;">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            Riordino Stock
-          </div>
-
           <div class="sidebar-divider"></div>
           <div class="app-sidebar-section-title">Strumenti</div>
 
@@ -147,10 +138,6 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>
             Storico
           </button>
-          <button type="button" class="tab-btn" id="tab-reorder">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            Riordino
-          </button>
         </div>
 
         <!-- Main Form Scrollable Container -->
@@ -202,22 +189,6 @@
                         <line x1="12" x2="12" y1="19" y2="22"/>
                       </svg>
                     </button>
-                  </div>
-                </div>
-
-                <!-- FIELD: Listino da Applicare -->
-                <div class="input-group">
-                  <label for="listino-select">Listino da Applicare</label>
-                  <div class="vocal-input-wrapper">
-                    <select id="listino-select">
-                      <option value="">Nessuno (Standard Giobby)</option>
-                      <option value="26">Listino Privati (ID 26)</option>
-                      <option value="27">Listino Posatori (ID 27)</option>
-                      <option value="24">Listino Bologna (ID 24)</option>
-                      <option value="10">Listino 10 (Parquettisti)</option>
-                      <option value="22">Listino 22 (Parquet Bologna)</option>
-                      <option value="28">Listino 28 (Prova Giobby)</option>
-                    </select>
                   </div>
                 </div>
               </div>
@@ -374,47 +345,6 @@
             </div>
           </div>
         </div>
-
-        <!-- View 4: Reorder Stock -->
-        <div id="reorder-view" style="display: none;">
-          <div class="card glass">
-            <div class="card-title d-flex justify-between align-items-center">
-              <span>Lista di Riordino Unificata</span>
-              <div style="display: flex; gap: 8px;">
-                <button type="button" class="btn-sm secondary-btn" id="btn-download-reorder-csv" style="width: auto; height: 32px; padding: 0 12px; margin-top: 0; display: flex; align-items: center; gap: 6px; background: linear-gradient(135deg,#d97706,#f59e0b); border: none; color: white; cursor: pointer; border-radius: 6px; font-weight: 500; font-size: 0.8rem; box-shadow: 0 4px 10px rgba(245,158,11,0.25);">
-                  📥 Scarica CSV Riordino
-                </button>
-              </div>
-            </div>
-            
-            <p style="color: var(--text-muted); font-size: 0.82rem; margin: -5px 0 15px 0; line-height: 1.4;">
-              Include gli articoli sotto scorta minima (calcolo automatico) e quelli contrassegnati manualmente tramite la casella "Ordina" in entrambe le applicazioni.
-            </p>
-
-            <!-- Reorder List Table -->
-            <div style="overflow-x: auto; width: 100%; border-radius: 8px; border: 1px solid var(--border-glass); background: rgba(0,0,0,0.15);">
-              <table class="reorder-table" style="width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem;">
-                <thead>
-                  <tr style="background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border-glass);">
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600;">SKU</th>
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600;">Descrizione</th>
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600;">Categoria</th>
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600; text-align: center;">Mag.</th>
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600; text-align: right;">Giac.</th>
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600; text-align: right;">Scorta Min.</th>
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600; text-align: right; color: #f87171;">Deficit</th>
-                    <th style="padding: 12px; color: var(--text-muted); font-weight: 600; text-align: center;">Tipo</th>
-                  </tr>
-                </thead>
-                <tbody id="reorder-list-container">
-                  <tr>
-                    <td colspan="8" style="padding: 20px; text-align: center; color: var(--text-muted);">Caricamento della lista di riordino...</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
         </main>
 
         <!-- Transcription Overlay (glowing status during active listening) -->
@@ -478,47 +408,6 @@
               <button type="button" class="btn btn-secondary" id="conf-wh-cancel" style="margin: 0; flex: 1;">Annulla</button>
               <button type="button" class="btn btn-primary" id="conf-wh-confirm" style="margin: 0; flex: 1.5;">Procedi</button>
             </div>
-          </div>
-
-          <!-- Modale Nuovo Prodotto -->
-          <div class="modal card glass" id="new-product-modal" style="display: none; max-width: 420px; text-align: left; padding: 20px;">
-            <h2 style="margin-top: 0; display: flex; align-items: center; gap: 8px;">
-              ➕ Nuovo Prodotto
-            </h2>
-            <form id="new-prod-form" onsubmit="event.preventDefault();" style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
-              <div class="input-group" style="margin: 0;">
-                <label for="new-prod-sku" style="font-size: 0.8rem; margin-bottom: 4px;">Codice Articolo (SKU)</label>
-                <input type="text" id="new-prod-sku" placeholder="es: ART-999" required style="height: 38px; padding: 8px 12px; font-size: 0.9rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); outline: none;">
-              </div>
-              <div class="input-group" style="margin: 0;">
-                <label for="new-prod-desc" style="font-size: 0.8rem; margin-bottom: 4px;">Descrizione</label>
-                <input type="text" id="new-prod-desc" placeholder="es: Rovere Naturale" required style="height: 38px; padding: 8px 12px; font-size: 0.9rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); outline: none;">
-              </div>
-              <div class="form-row" style="display: flex; gap: 10px; margin: 0;">
-                <div class="input-group" style="flex: 1; margin: 0;">
-                  <label for="new-prod-loc" style="font-size: 0.8rem; margin-bottom: 4px;">Ubicazione</label>
-                  <input type="text" id="new-prod-loc" value="MB" style="height: 38px; padding: 8px 12px; font-size: 0.9rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); outline: none;">
-                </div>
-                <div class="input-group" style="flex: 1; margin: 0;">
-                  <label for="new-prod-cat" style="font-size: 0.8rem; margin-bottom: 4px;">Categoria</label>
-                  <input type="text" id="new-prod-cat" value="Generale" style="height: 38px; padding: 8px 12px; font-size: 0.9rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); outline: none;">
-                </div>
-              </div>
-              <div class="form-row" style="display: flex; gap: 10px; margin: 0;">
-                <div class="input-group" style="flex: 1; margin: 0;">
-                  <label for="new-prod-qty" style="font-size: 0.8rem; margin-bottom: 4px;">Giacenza</label>
-                  <input type="number" id="new-prod-qty" value="0" step="any" style="height: 38px; padding: 8px 12px; font-size: 0.9rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); outline: none;">
-                </div>
-                <div class="input-group" style="flex: 1; margin: 0;">
-                  <label for="new-prod-sales-price" style="font-size: 0.8rem; margin-bottom: 4px;">Prezzo Vendita (€)</label>
-                  <input type="number" id="new-prod-sales-price" value="0" step="any" style="height: 38px; padding: 8px 12px; font-size: 0.9rem; background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 6px; color: var(--text-primary); outline: none;">
-                </div>
-              </div>
-              <div class="form-actions" style="display: flex; gap: 10px; margin-top: 10px; justify-content: center; width: 100%;">
-                <button type="button" class="btn btn-secondary" id="new-prod-cancel" style="margin: 0; flex: 1;">Annulla</button>
-                <button type="submit" class="btn btn-primary" id="new-prod-save" style="margin: 0; flex: 1.5; background: var(--primary);">Salva Prodotto</button>
-              </div>
-            </form>
           </div>
 
         </div>

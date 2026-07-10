@@ -1,0 +1,491 @@
+[
+  {
+    "id": "4784",
+    "docNumber": "265",
+    "docDate": "2026-06-30",
+    "idCustomer": "986",
+    "idContact": 1423,
+    "customerName": "SERVIZIO PARQUET SRLS",
+    "causale": "Vendita",
+    "numArticles": 2,
+    "articles": [
+      {
+        "idMaterial": "123",
+        "description": "ADESIVER ELASTIC ROVERE conf. 5 kg",
+        "quantity": 50,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "62",
+        "description": "POLIFILM TP 10 LEGASTUCCO LT 5",
+        "quantity": 15,
+        "idVat": "22",
+        "idWarehouse": "CCIW"
+      }
+    ],
+    "createdAt": "2026-06-30T14:52:48.380Z"
+  },
+  {
+    "id": "4783",
+    "docNumber": "264",
+    "docDate": "2026-06-30",
+    "idCustomer": "1232",
+    "idContact": 1937,
+    "customerName": "WOOD SERVICE DI PAGANI PAOLO",
+    "causale": "Vendita",
+    "numArticles": 5,
+    "articles": [
+      {
+        "idMaterial": "PRGAR324",
+        "description": "GARAPA 19X90X152,4 NF",
+        "quantity": 1.6416,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PRGAR324",
+        "description": "GARAPA 19X90X152,4 NF",
+        "quantity": 2.736,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PRGAR324",
+        "description": "GARAPA 19X90X152,4 NF",
+        "quantity": 3.627,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "95",
+        "description": "LARICE BILAMA LAMELLARE SAN 4,2X4,5X300 CM",
+        "quantity": 99,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "MIDA300/60X20X2",
+        "description": "BARRA SOTTOSTRUTTURA ALLUMINIO 60X20X2X3000",
+        "quantity": 48,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-30T14:47:54.398Z"
+  },
+  {
+    "id": "4780",
+    "docNumber": "261",
+    "docDate": "2026-06-29",
+    "idCustomer": "912",
+    "idContact": 1289,
+    "customerName": "MAGAZZINO",
+    "causale": "Vendita",
+    "numArticles": 8,
+    "articles": [
+      {
+        "idMaterial": "89",
+        "description": "ULTRACOAT TOP DECK OIL NEUTRAL",
+        "quantity": 10,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PRGARSAN26414",
+        "description": "GARAPA 19X90X950 B 414",
+        "quantity": 0.97,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PRCOLTOVTP5",
+        "description": "PRCOL TOVCOL TP5 COLLA VINILICA PER POSA FLOTTANTE 500 ML TOVER",
+        "quantity": 3,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "VERMAN508111ML310VER",
+        "description": "SILWOOD/PARKETKIT GRIGIO ML=310",
+        "quantity": 2,
+        "idVat": "22",
+        "idWarehouse": "CCIW"
+      },
+      {
+        "idMaterial": "COLBICULTP9132KCHKG010MAP",
+        "description": "PRCOL ULTRABOND P913 2K CHIARA COLLANTE BICOMPONENTE",
+        "quantity": 20,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "96BTSM",
+        "description": "PRBAT SM BATTISCOPA 50X10 TANG BIANCO",
+        "quantity": 4.8,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PRODISPINZ2646ARGML270PRO",
+        "description": "ZERO CURVE 2646 DISLIVELLO LVT ARGENTO  MM 4/6X26",
+        "quantity": 2.7,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PROGIU149ALLARG0914PRO",
+        "description": "PRPRO PROCOVER 149 GIUNTO A T 9X14 ARGENTO SATINATO",
+        "quantity": 2.7,
+        "idVat": "22",
+        "idWarehouse": "CCIW"
+      }
+    ],
+    "createdAt": "2026-06-29T20:49:56.038Z"
+  },
+  {
+    "id": "4779",
+    "docNumber": "260",
+    "docDate": "2026-06-29",
+    "idCustomer": "1328",
+    "idContact": 2120,
+    "customerName": "MAGAZZINO LUIGI",
+    "causale": "Vendita",
+    "numArticles": 12,
+    "articles": [
+      {
+        "idMaterial": "VERMAN508111ML310VER",
+        "description": "SILWOOD/PARKETKIT GRIGIO ML=310",
+        "quantity": 3,
+        "idVat": "22",
+        "idWarehouse": "CCIW"
+      },
+      {
+        "idMaterial": "TOVLEGSTU",
+        "description": "LEGASTUCCO RS/A",
+        "quantity": 10,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "113",
+        "description": "ULTRACOAT PREMIUM BASE A+B (5+1)",
+        "quantity": 6,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "77",
+        "description": "PRABR DISCO VELCRO DIAM 140 F 30 GRANA 80",
+        "quantity": 60,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "DRA220",
+        "description": "PRABR DISCHI RETE ABR D407 GR220",
+        "quantity": 220,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "118",
+        "description": "ULTRACOAT HT 2K GLOSS 10 LT= 5,5 VERNICE BICOMPONENTE ALL'ACQUA",
+        "quantity": 5.25,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "Y946ZGR36",
+        "description": "PRABR NASTRI SV 750X203 GR36",
+        "quantity": 3,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "Y946ZGR60",
+        "description": "PRABR NASTRI SV 750X203 GR60",
+        "quantity": 10,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "ZVGR50",
+        "description": "PRABR DISCHI VE ZIRC D140XF30 GR 50",
+        "quantity": 30,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "TOVLEGSTU",
+        "description": "LEGASTUCCO RS/A",
+        "quantity": 10,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "66 TOVER VERN",
+        "description": "GRAN FONDO NP 5+5 LT A SOLV.",
+        "quantity": 10,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "VERFINACQECOSTAR2KSLLLT5.5CHI",
+        "description": "ECOSTAR 2K SL LT 5,5 VERNICE BICOMPONENTE ACQUA",
+        "quantity": 11,
+        "idVat": "22",
+        "idWarehouse": "CCIW"
+      }
+    ],
+    "createdAt": "2026-06-29T20:42:56.770Z"
+  },
+  {
+    "id": "4778",
+    "docNumber": "259",
+    "docDate": "2026-06-29",
+    "idCustomer": "1391",
+    "idContact": 2273,
+    "customerName": "FOGIEL FRANK",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "TESNTESFAT25",
+        "description": "TESSUTO NON TESSUTO MT 25 H 100 BRIXO",
+        "quantity": 70,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:31:20.603Z"
+  },
+  {
+    "id": "4777",
+    "docNumber": "258",
+    "docDate": "2026-06-29",
+    "idCustomer": "1368",
+    "idContact": 2224,
+    "customerName": "MONTALI SARA",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "97BTSM",
+        "description": "PRBAT SM BATTISCOPA 50X10 TANG 9010",
+        "quantity": 40.8,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:27:06.184Z"
+  },
+  {
+    "id": "4776",
+    "docNumber": "257",
+    "docDate": "2026-06-29",
+    "idCustomer": "462",
+    "idContact": 647,
+    "customerName": "petito",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "89",
+        "description": "ULTRACOAT TOP DECK OIL NEUTRAL",
+        "quantity": 10,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:25:40.514Z"
+  },
+  {
+    "id": "4775",
+    "docNumber": "256",
+    "docDate": "2026-06-29",
+    "idCustomer": "1350",
+    "idContact": 2182,
+    "customerName": "DORIGOTTI FABIO",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "TOV000WPC",
+        "description": "DETERGENTE WPC PRO LT1",
+        "quantity": 1,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:24:29.882Z"
+  },
+  {
+    "id": "4774",
+    "docNumber": "255",
+    "docDate": "2026-06-29",
+    "idCustomer": "1939",
+    "idContact": 3111,
+    "customerName": "MONICA PARTISANI",
+    "causale": "Vendita",
+    "numArticles": 5,
+    "articles": [
+      {
+        "idMaterial": "VITACZ4H-34AZPXCCU",
+        "description": "VITE ACCIAIO C1022 TRATT KERAPLUS3 MM 4,8 MM34 AUTOFORANTE MEZZO FILETTO TESTA TONDA BOMBATA SVASATA (TGS) TORX COL RAME",
+        "quantity": 200,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "89",
+        "description": "ULTRACOAT TOP DECK OIL NEUTRAL",
+        "quantity": 5,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PRGARSAN26414",
+        "description": "GARAPA 19X90X950 B 414",
+        "quantity": 1.79,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "PRGARSAN26337",
+        "description": "GARAPA 19X90X1850 B 337",
+        "quantity": 2.66,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      },
+      {
+        "idMaterial": "VITACZ050-50/DNX/CCU",
+        "description": "VITE ACCIAIO C1022  TRATT KERAPLUS3 MM5X50 DOPPIO FILETTO TESTA TONDA BOMBATA",
+        "quantity": 400,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:21:51.269Z"
+  },
+  {
+    "id": "4773",
+    "docNumber": "254",
+    "docDate": "2026-06-29",
+    "idCustomer": "945",
+    "idContact": 1339,
+    "customerName": "GIUNCHI NICOLA",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "98BTSM",
+        "description": "PRBAT SM BATTISCOPA 50X10 TANG ROVERE",
+        "quantity": 12,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:11:23.506Z"
+  },
+  {
+    "id": "4772",
+    "docNumber": "253",
+    "docDate": "2026-06-29",
+    "idCustomer": "1397",
+    "idContact": 2280,
+    "customerName": "MORGANTI MATTEO",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "97BTSM",
+        "description": "PRBAT SM BATTISCOPA 50X10 TANG 9010",
+        "quantity": 9.6,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:10:14.669Z"
+  },
+  {
+    "id": "4771",
+    "docNumber": "252",
+    "docDate": "2026-06-29",
+    "idCustomer": "2048",
+    "idContact": 3258,
+    "customerName": "Ditta Liberati Erminio Fu Enrico",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "PRBTSMBCBIA26",
+        "description": "PRBAT SM BATTISCOPA 70X10 BIANCO BECCO CIVETTA",
+        "quantity": 16.8,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T20:02:34.366Z"
+  },
+  {
+    "id": "4770",
+    "docNumber": "251",
+    "docDate": "2026-06-29",
+    "idCustomer": "1159",
+    "idContact": 1810,
+    "customerName": "SCOZZOLI ANDREA",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "97BTSM",
+        "description": "PRBAT SM BATTISCOPA 50X10 TANG 9010",
+        "quantity": 96,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T19:41:57.839Z"
+  },
+  {
+    "id": "4769",
+    "docNumber": "250",
+    "docDate": "2026-06-29",
+    "idCustomer": "1844",
+    "idContact": 2992,
+    "customerName": "MARTA BENINI",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "TESNTESFAT25",
+        "description": "TESSUTO NON TESSUTO MT 25 H 100 BRIXO",
+        "quantity": 25,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T19:35:56.036Z"
+  },
+  {
+    "id": "4768",
+    "docNumber": "249",
+    "docDate": "2026-06-29",
+    "idCustomer": "153",
+    "idContact": 237,
+    "customerName": "MORIGI GIANNI",
+    "causale": "Vendita",
+    "numArticles": 1,
+    "articles": [
+      {
+        "idMaterial": "COLBICULTP9132KCHKG010MAP",
+        "description": "PRCOL ULTRABOND P913 2K CHIARA COLLANTE BICOMPONENTE",
+        "quantity": 150,
+        "idVat": "22",
+        "idWarehouse": "MPR"
+      }
+    ],
+    "createdAt": "2026-06-29T19:31:52.403Z"
+  }
+]

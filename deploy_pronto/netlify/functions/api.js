@@ -22,24 +22,6 @@ function readObsoleteList() {
   return [];
 }
 
-function filterActiveProducts(products) {
-  if (!Array.isArray(products)) return [];
-  const localObsoleteList = readObsoleteList();
-  return products.filter(p => {
-    if (!p) return false;
-    // Obsolete on Giobby (group description is OBSOLETO or group ID is 38)
-    const gId = p.idMaterialGroup ?? p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
-    const gDesc = p.materialGroupDesc ?? '';
-    const isGiobbyObsolete = String(gId) === '38' || String(gDesc).toUpperCase() === 'OBSOLETO';
-    
-    // Obsolete in session or local obsolete
-    const pId = p.id || p.CodiceArticolo;
-    const isObsolete = isGiobbyObsolete || !!p.localObsolete || !!p.Obsoleto || (pId && localObsoleteList.includes(String(pId)));
-    
-    return !isObsolete;
-  });
-}
-
 // Local Products Cache helper
 function readProductsFromSession() {
   try {
@@ -59,22 +41,6 @@ function readProductsFromSession() {
         if (fs.existsSync(sessionFilePath)) {
           const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
           if (sessionData && Array.isArray(sessionData.products)) {
-            // Load cache to fetch listini prices fallback
-            const cachedPricesMap = {};
-            try {
-              const urlPath = new URL('../../prodotti_cache.json', import.meta.url);
-              if (fs.existsSync(urlPath)) {
-                const cacheData = JSON.parse(fs.readFileSync(urlPath, 'utf8'));
-                if (cacheData && Array.isArray(cacheData.products)) {
-                  cacheData.products.forEach(cp => {
-                    if (cp.id) cachedPricesMap[String(cp.id).toLowerCase()] = cp.prices;
-                  });
-                }
-              }
-            } catch (e) {
-              console.warn('[Netlify Function] Failed to parse cache in session read:', e.message);
-            }
-
             const localObsoleteList = readObsoleteList();
             const mapped = sessionData.products.map(p => {
               const defaultWh = p._defaultStorage || 'MB';
@@ -84,19 +50,8 @@ function readProductsFromSession() {
               };
               stocks[defaultWh] = p.GiacenzaTeorica || 0;
               
-              const skuLower = String(p.CodiceArticolo).toLowerCase();
-              let pPrices = cachedPricesMap[skuLower];
-              
-              if (!pPrices) {
-                const pSales = parseFloat(p.SalesPrice || p.Prezzo || p.prezzo || 0);
-                const pPur = parseFloat(p.PurchasePrice || 0);
-                pPrices = {
-                  acquisto: pPur || pSales / 1.35 || 0,
-                  privati: pSales || pPur * 1.35 || 0,
-                  posatori: pPur || pSales / 1.35 || 0,
-                  bologna: pPur || pSales / 1.35 || 0
-                };
-              }
+              const pSales = parseFloat(p.SalesPrice || p.Prezzo || p.prezzo || 0);
+              const pPur = parseFloat(p.PurchasePrice || 0);
               
               return {
                 id: p.CodiceArticolo,
@@ -113,10 +68,9 @@ function readProductsFromSession() {
                 minStock: p.ScortaMinima || 0,
                 ordina: !!p.Ordina,
                 prices: {
-                  acquisto: pPrices.acquisto !== undefined ? pPrices.acquisto : (pPrices.privati ? pPrices.privati / 1.35 : 0),
-                  privati: pPrices.privati || 0,
-                  posatori: pPrices.posatori || 0,
-                  bologna: pPrices.bologna || 0
+                  privati: pSales || pPur * 1.35 || 0,
+                  posatori: pPur || pSales / 1.35 || 0,
+                  bologna: pPur || pSales / 1.35 || 0
                 }
               };
             });
@@ -333,9 +287,6 @@ export default async (req, context) => {
       const cache = readProductsCache();
       let products = cache.products || [];
 
-      // Filter out obsolete/deleted products from inventory
-      products = filterActiveProducts(products);
-
       // Filter by category if specified
       if (idCategory) {
         const catIds = String(idCategory).split(',').map(id => id.trim());
@@ -398,21 +349,15 @@ export default async (req, context) => {
             if (fs.existsSync(sessionFilePath)) {
               const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
               if (sessionData && Array.isArray(sessionData.products)) {
-                 // Filter out obsolete/deleted products
-                 const activeProds = filterActiveProducts(sessionData.products.map(p => ({
-                   idMaterialGroup: p.Categoria || 'Generale',
-                   materialGroupDesc: p.Categoria || 'Generale',
-                   localObsolete: !!p.Obsoleto || localObsoleteList.includes(p.CodiceArticolo)
-                 })));
-                 const cats = new Set();
-                 activeProds.forEach(p => {
-                   if (p.idMaterialGroup) cats.add(p.idMaterialGroup.trim());
-                 });
-                 if (cats.size === 0) cats.add('Generale');
-                 const groups = Array.from(cats).map(cat => ({
-                   id: cat,
-                   description: cat
-                 }));
+                const cats = new Set();
+                sessionData.products.forEach(p => {
+                  if (p.Categoria) cats.add(p.Categoria.trim());
+                });
+                if (cats.size === 0) cats.add('Generale');
+                const groups = Array.from(cats).map(cat => ({
+                  id: cat,
+                  description: cat
+                }));
                 return new Response(JSON.stringify(groups), {
                   status: 200,
                   headers: { 'Content-Type': 'application/json' }
@@ -714,7 +659,6 @@ export default async (req, context) => {
           boxQty: giobbyProduct.boxQty || 0,
           um: giobbyProduct.um || '',
           prices: {
-            acquisto: parseFloat(basePrice.toFixed(4)),
             privati: parseFloat(pricePrivati.toFixed(4)),
             posatori: parseFloat(pricePosatori.toFixed(4)),
             bologna: parseFloat(priceBologna.toFixed(4))
@@ -925,10 +869,9 @@ export default async (req, context) => {
     if (pathname === '/api/products/reorder' && req.method === 'GET') {
       const cache = readProductsCache();
       const products = cache.products || [];
-      const activeProducts = filterActiveProducts(products);
       const reorderList = [];
 
-      activeProducts.forEach(p => {
+      products.forEach(p => {
         const minStock = p.minStock || 0;
         const whCode = p.defaultStorage || 'MB';
         const currentQty = p.stocks ? (p.stocks[whCode] || 0) : 0;

@@ -1334,39 +1334,22 @@ body {
 .badge-stock.simulated { border-style: dashed; }
 .prod-prices-wrap {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   margin-top: 6px;
-  font-size: 0.64rem;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  font-size: 0.68rem;
+  flex-wrap: wrap;
 }
 .price-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.64rem;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.68rem;
   font-weight: 500;
-  white-space: nowrap;
 }
 .price-badge strong {
   font-weight: 700;
-  filter: blur(3.5px);
-  user-select: none;
-  transition: filter 0.15s ease-in-out;
-}
-.price-badge:hover strong {
-  filter: none;
-  user-select: auto;
-}
-.price-badge.price-acquisto {
-  background: rgba(71, 85, 105, 0.08);
-  border: 1px solid rgba(71, 85, 105, 0.25);
-  color: #475569;
-}
-.price-badge.price-acquisto strong {
-  color: #475569;
 }
 .price-badge.price-privati {
   background: rgba(14, 165, 233, 0.08);
@@ -3831,65 +3814,5 @@ body.view-only-history .app-body {
 
 body.view-only-history #open-history-win-main {
   display: none !important;
-}
-
-/* Stili specifici per il riordino e la cancellazione */
-.prod-delete-btn:hover {
-  background: rgba(239, 68, 68, 0.28) !important;
-  color: #ef4444 !important;
-  transform: scale(1.08);
-}
-
-.reorder-table th, .reorder-table td {
-  border-bottom: 1px solid var(--border-glass);
-}
-
-.reorder-table tr:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.reorder-table td {
-  padding: 12px;
-}
-
-.reorder-type-badge {
-  display: inline-block;
-  padding: 3px 8px;
-  border-radius: 4px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.reorder-type-auto {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-  border: 1px solid rgba(239, 68, 68, 0.25);
-}
-
-.reorder-type-manual {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.25);
-}
-
-/* Stili per checkbox riordino manuale nel catalogo */
-.prod-reorder-checkbox-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  user-select: none;
-  margin-right: 12px;
-}
-
-.prod-reorder-checkbox-wrap input {
-  cursor: pointer;
-  accent-color: #fbbf24;
-  width: 15px;
-  height: 15px;
-  margin: 0;
 }
 

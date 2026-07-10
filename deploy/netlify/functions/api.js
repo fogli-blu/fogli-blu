@@ -22,141 +22,6 @@ function readObsoleteList() {
   return [];
 }
 
-function filterActiveProducts(products) {
-  if (!Array.isArray(products)) return [];
-  const localObsoleteList = readObsoleteList();
-  return products.filter(p => {
-    if (!p) return false;
-    // Obsolete on Giobby (group description is OBSOLETO or group ID is 38)
-    const gId = p.idMaterialGroup ?? p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
-    const gDesc = p.materialGroupDesc ?? '';
-    const isGiobbyObsolete = String(gId) === '38' || String(gDesc).toUpperCase() === 'OBSOLETO';
-    
-    // Obsolete in session or local obsolete
-    const pId = p.id || p.CodiceArticolo;
-    const isObsolete = isGiobbyObsolete || !!p.localObsolete || !!p.Obsoleto || (pId && localObsoleteList.includes(String(pId)));
-    
-    return !isObsolete;
-  });
-}
-
-// Local Products Cache helper
-function readProductsFromSession() {
-  try {
-    let activeSessionTxtPath = path.join(process.cwd(), '..', 'Inventario', 'active_session.txt');
-    if (!fs.existsSync(activeSessionTxtPath)) {
-      activeSessionTxtPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../Inventario/active_session.txt');
-    }
-    
-    if (process.platform === 'win32' && activeSessionTxtPath.startsWith('\\')) {
-      activeSessionTxtPath = activeSessionTxtPath.substring(1);
-    }
-
-    if (fs.existsSync(activeSessionTxtPath)) {
-      const sessionName = fs.readFileSync(activeSessionTxtPath, 'utf8').trim();
-      if (sessionName) {
-        let sessionFilePath = path.join(path.dirname(activeSessionTxtPath), `session_${sessionName}.json`);
-        if (fs.existsSync(sessionFilePath)) {
-          const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
-          if (sessionData && Array.isArray(sessionData.products)) {
-            // Load cache to fetch listini prices fallback
-            const cachedPricesMap = {};
-            try {
-              const urlPath = new URL('../../prodotti_cache.json', import.meta.url);
-              if (fs.existsSync(urlPath)) {
-                const cacheData = JSON.parse(fs.readFileSync(urlPath, 'utf8'));
-                if (cacheData && Array.isArray(cacheData.products)) {
-                  cacheData.products.forEach(cp => {
-                    if (cp.id) cachedPricesMap[String(cp.id).toLowerCase()] = cp.prices;
-                  });
-                }
-              }
-            } catch (e) {
-              console.warn('[Netlify Function] Failed to parse cache in session read:', e.message);
-            }
-
-            const localObsoleteList = readObsoleteList();
-            const mapped = sessionData.products.map(p => {
-              const defaultWh = p._defaultStorage || 'MB';
-              const stocks = {
-                "MB": 0, "CCIW": 0, "PR 26": 0, "CATALOGO": 0, "IW": 0,
-                "MBB": 0, "MGR": 0, "MP": 0, "MPR": 0, "SANTINI": 0
-              };
-              stocks[defaultWh] = p.GiacenzaTeorica || 0;
-              
-              const skuLower = String(p.CodiceArticolo).toLowerCase();
-              let pPrices = cachedPricesMap[skuLower];
-              
-              if (!pPrices) {
-                const pSales = parseFloat(p.SalesPrice || p.Prezzo || p.prezzo || 0);
-                const pPur = parseFloat(p.PurchasePrice || 0);
-                pPrices = {
-                  acquisto: pPur || pSales / 1.35 || 0,
-                  privati: pSales || pPur * 1.35 || 0,
-                  posatori: pPur || pSales / 1.35 || 0,
-                  bologna: pPur || pSales / 1.35 || 0
-                };
-              }
-              
-              return {
-                id: p.CodiceArticolo,
-                barcode: p.Barcode || '',
-                description: p.Descrizione || '',
-                idMaterialGroup: p.Categoria || 'Generale',
-                materialGroupDesc: p.Categoria || 'Generale',
-                defaultStorage: defaultWh,
-                stocks: stocks,
-                idVat: p.idVat || '22',
-                localObsolete: !!p.Obsoleto || localObsoleteList.includes(p.CodiceArticolo),
-                boxQty: p.BoxQty || p.boxQty || 0,
-                um: p._um || p.UM || 'pz',
-                minStock: p.ScortaMinima || 0,
-                ordina: !!p.Ordina,
-                prices: {
-                  acquisto: pPrices.acquisto !== undefined ? pPrices.acquisto : (pPrices.privati ? pPrices.privati / 1.35 : 0),
-                  privati: pPrices.privati || 0,
-                  posatori: pPrices.posatori || 0,
-                  bologna: pPrices.bologna || 0
-                }
-              };
-            });
-            return {
-              lastSync: new Date().toISOString(),
-              products: mapped
-            };
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[Netlify Function] Impossibile leggere i prodotti dalla sessione Inventario:', err.message);
-  }
-  return null;
-}
-
-function readProductsCache() {
-  const sessionProducts = readProductsFromSession();
-  if (sessionProducts) return sessionProducts;
-
-  try {
-    const urlPath = new URL('../../prodotti_cache.json', import.meta.url);
-    if (fs.existsSync(urlPath)) {
-      const data = fs.readFileSync(urlPath, 'utf8');
-      return JSON.parse(data || '{"products":[],"lastSync":null}');
-    } else {
-      const cwdPath = path.join(process.cwd(), 'prodotti_cache.json');
-      if (fs.existsSync(cwdPath)) {
-        const data = fs.readFileSync(cwdPath, 'utf8');
-        return JSON.parse(data || '{"products":[],"lastSync":null}');
-      }
-    }
-  } catch (err) {
-    console.warn('[Netlify Function] Impossibile leggere prodotti_cache.json:', err.message);
-  }
-  return { products: [], lastSync: null };
-}
-
-
 
 // Giobby static credentials
 const GIOBBY_REALM = "api-server";
@@ -327,53 +192,24 @@ export default async (req, context) => {
 
     // 3. ROUTE: GET /api/products
     if (pathname === '/api/products' && req.method === 'GET') {
-      const query = (url.searchParams.get('q') || '').toLowerCase().trim();
+      const query = url.searchParams.get('q') || '';
       const idCategory = url.searchParams.get('idCategory') || '';
       
-      const cache = readProductsCache();
-      let products = cache.products || [];
+      const limit = idCategory ? 1000 : 50;
+      const params = { limit, salesEnabled: true };
+      if (query) params.description = query;
 
-      // Filter out obsolete/deleted products from inventory
-      products = filterActiveProducts(products);
+      const data = await requestGiobby('/products', 'GET', null, params);
+      let products = data.products || [];
 
-      // Filter by category if specified
       if (idCategory) {
-        const catIds = String(idCategory).split(',').map(id => id.trim());
         products = products.filter(p => {
           const gId = p.idMaterialGroup ?? p.idProductsGroup ?? p.idProductGroup ?? p.idGroup ?? p.groupId;
-          return catIds.includes(String(gId));
+          return String(gId) === String(idCategory);
         });
       }
 
-      // Filter by text search query
-      if (query) {
-        const queryWords = query.toLowerCase().split(/\s+/).filter(Boolean);
-        products = products.filter(p => {
-          const searchTarget = `${String(p.id)} ${p.barcode ? String(p.barcode) : ''} ${String(p.description)}`.toLowerCase();
-          return queryWords.every(word => searchTarget.includes(word));
-        });
-      }
-
-      // Limit results
-      const limit = parseInt(url.searchParams.get('limit')) || (idCategory ? 1000 : 50);
-      products = products.slice(0, limit);
-
-      // Resolve dynamic Giobby product URL base if possible
-      if (!cachedApiUrl) {
-        try {
-          await authenticateGiobby();
-        } catch (e) {
-          console.warn('[Netlify Warning] Impossibile autenticare Giobby per risolvere cachedApiUrl:', e.message);
-        }
-      }
-      const baseApiUrl = cachedApiUrl || 'https://app.giobby.com/GiobbyApi00553/v1';
-      const frontendRoot = baseApiUrl.replace('/GiobbyApi', '/Giobby').replace(/\/v1\/?$/, '');
-      const productsWithUrls = products.map(p => ({
-        ...p,
-        giobbyUrl: `${frontendRoot}/company/Material.xhtml?id=${encodeURIComponent(p.id)}`
-      }));
-
-      return new Response(JSON.stringify(productsWithUrls), {
+      return new Response(JSON.stringify(products), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -382,46 +218,6 @@ export default async (req, context) => {
     // 4. ROUTE: GET /api/categories → carica o estrae i gruppi di prodotti
     if (pathname === '/api/categories' && req.method === 'GET') {
       try {
-        // Prova prima a caricare dalla sessione attiva
-        let activeSessionTxtPath = path.join(process.cwd(), '..', 'Inventario', 'active_session.txt');
-        if (!fs.existsSync(activeSessionTxtPath)) {
-          activeSessionTxtPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../Inventario/active_session.txt');
-        }
-        if (process.platform === 'win32' && activeSessionTxtPath.startsWith('\\')) {
-          activeSessionTxtPath = activeSessionTxtPath.substring(1);
-        }
-
-        if (fs.existsSync(activeSessionTxtPath)) {
-          const sessionName = fs.readFileSync(activeSessionTxtPath, 'utf8').trim();
-          if (sessionName) {
-            const sessionFilePath = path.join(path.dirname(activeSessionTxtPath), `session_${sessionName}.json`);
-            if (fs.existsSync(sessionFilePath)) {
-              const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
-              if (sessionData && Array.isArray(sessionData.products)) {
-                 // Filter out obsolete/deleted products
-                 const activeProds = filterActiveProducts(sessionData.products.map(p => ({
-                   idMaterialGroup: p.Categoria || 'Generale',
-                   materialGroupDesc: p.Categoria || 'Generale',
-                   localObsolete: !!p.Obsoleto || localObsoleteList.includes(p.CodiceArticolo)
-                 })));
-                 const cats = new Set();
-                 activeProds.forEach(p => {
-                   if (p.idMaterialGroup) cats.add(p.idMaterialGroup.trim());
-                 });
-                 if (cats.size === 0) cats.add('Generale');
-                 const groups = Array.from(cats).map(cat => ({
-                   id: cat,
-                   description: cat
-                 }));
-                return new Response(JSON.stringify(groups), {
-                  status: 200,
-                  headers: { 'Content-Type': 'application/json' }
-                });
-              }
-            }
-          }
-        }
-
         const data = await requestGiobby('/productsgroups', 'GET', null, {});
         const groups = (data.productsGroups || []).map(g => ({
           id: g.id,
@@ -714,7 +510,6 @@ export default async (req, context) => {
           boxQty: giobbyProduct.boxQty || 0,
           um: giobbyProduct.um || '',
           prices: {
-            acquisto: parseFloat(basePrice.toFixed(4)),
             privati: parseFloat(pricePrivati.toFixed(4)),
             posatori: parseFloat(pricePosatori.toFixed(4)),
             bologna: parseFloat(priceBologna.toFixed(4))
@@ -736,10 +531,9 @@ export default async (req, context) => {
 
     // 7. ROUTE: GET /api/products/status (Get sync status - serverless fallback)
     if (pathname === '/api/products/status' && req.method === 'GET') {
-      const cache = readProductsCache();
       return new Response(JSON.stringify({
-        lastSync: cache.lastSync,
-        count: cache.products ? cache.products.length : 0
+        lastSync: null,
+        count: 0
       }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
@@ -755,283 +549,246 @@ export default async (req, context) => {
           headers: { 'Content-Type': 'application/json' }
         });
       }
-
-      // Prova ad aggiornare la sessione attiva se presente
-      try {
-        let activeSessionTxtPath = path.join(process.cwd(), '..', 'Inventario', 'active_session.txt');
-        if (!fs.existsSync(activeSessionTxtPath)) {
-          activeSessionTxtPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../Inventario/active_session.txt');
-        }
-        if (process.platform === 'win32' && activeSessionTxtPath.startsWith('\\')) {
-          activeSessionTxtPath = activeSessionTxtPath.substring(1);
-        }
-        if (fs.existsSync(activeSessionTxtPath)) {
-          const sessionName = fs.readFileSync(activeSessionTxtPath, 'utf8').trim();
-          if (sessionName) {
-            const sessionFilePath = path.join(path.dirname(activeSessionTxtPath), `session_${sessionName}.json`);
-            if (fs.existsSync(sessionFilePath)) {
-              const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
-              const prod = sessionData.products.find(p => String(p.CodiceArticolo).toLowerCase() === String(id).toLowerCase());
-              if (prod) {
-                prod.Obsoleto = !!obsolete;
-                fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf8');
-                console.log(`[Netlify Function] Flag Obsoleto sincronizzato in sessione Inventario per ${id}.`);
-              }
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('[Netlify Function] Impossibile aggiornare obsoleto in sessione:', err.message);
-      }
-
       return new Response(JSON.stringify({ success: true, id, localObsolete: !!obsolete }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // 8.b. ROUTE: POST /api/products (Aggiunta nuovo prodotto nella sessione attiva)
-    if (pathname === '/api/products' && req.method === 'POST') {
-      const { sku, desc, loc, cat, qty, salesPrice } = await req.json();
-
-      if (!sku || !desc) {
-        return new Response(JSON.stringify({ error: 'Codice e Descrizione sono obbligatori.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+    // 9. ROUTE: POST /api/products/sync (Synchronize catalog - serverless fallback returning products array)
+    if (pathname === '/api/products/sync' && req.method === 'POST') {
+      console.log('[Netlify Sync] Avvio sincronizzazione prodotti da Giobby...');
+      // 1. Authenticate Giobby to make sure we have access token
+      await authenticateGiobby();
+      
+      // 2. Read local giacenze_prodotti.json to merge stock quantities if available
+      let giacenze = {};
+      try {
+        const urlPath = new URL('../../giacenze_prodotti.json', import.meta.url);
+        if (fs.existsSync(urlPath)) {
+          const rawGiacenze = fs.readFileSync(urlPath, 'utf8');
+          giacenze = JSON.parse(rawGiacenze || '{}');
+        } else {
+          const cwdPath = path.join(process.cwd(), 'giacenze_prodotti.json');
+          if (fs.existsSync(cwdPath)) {
+            const rawGiacenze = fs.readFileSync(cwdPath, 'utf8');
+            giacenze = JSON.parse(rawGiacenze || '{}');
+          }
+        }
+      } catch (err) {
+        console.warn('[Netlify Sync] Fallback local stock file lookup failed:', err);
       }
 
-      let activeSessionTxtPath = path.join(process.cwd(), '..', 'Inventario', 'active_session.txt');
-      if (!fs.existsSync(activeSessionTxtPath)) {
-        activeSessionTxtPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../Inventario/active_session.txt');
-      }
-      if (process.platform === 'win32' && activeSessionTxtPath.startsWith('\\')) {
-        activeSessionTxtPath = activeSessionTxtPath.substring(1);
-      }
+      // 2.b Read local obsolete list to carry flags over synchronization
+      const localObsoleteList = readObsoleteList();
+      const localObsoleteSet = new Set(localObsoleteList);
 
-      if (!fs.existsSync(activeSessionTxtPath)) {
-        return new Response(JSON.stringify({ error: 'Nessuna sessione attiva configurata in Inventario.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+      // 2.b.2 Fetch base pricelists from Giobby
+      console.log('[Netlify Sync] Download listini base da Giobby...');
+      let listino10Rows = [];
+      let listino22Rows = [];
+      let listino28Rows = [];
 
-      const sessionName = fs.readFileSync(activeSessionTxtPath, 'utf8').trim();
-      const sessionFilePath = path.join(path.dirname(activeSessionTxtPath), `session_${sessionName}.json`);
-      if (!fs.existsSync(sessionFilePath)) {
-        return new Response(JSON.stringify({ error: 'File sessione attiva non trovato.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+      try {
+        console.log('[Netlify Sync] Download Listino 10 ("PARQUETTISTI IMPRESE")...');
+        const listino10Data = await requestGiobby('/pricelists/10', 'GET', null, {});
+        listino10Rows = listino10Data.pricelist?.rows || [];
+        console.log(`[Netlify Sync] Ricevute ${listino10Rows.length} righe per Listino 10.`);
+      } catch (err) {
+        console.error('[Netlify Sync Warning] Impossibile scaricare Listino 10:', err.message || err);
       }
 
-      const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
-      const isDuplicate = sessionData.products.some(p => String(p.CodiceArticolo).toLowerCase() === sku.toLowerCase());
-      if (isDuplicate) {
-        return new Response(JSON.stringify({ error: 'Questo Codice Articolo è già presente nell\'inventario.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+      try {
+        console.log('[Netlify Sync] Download Listino 22 ("PARQUET BOLOGNA SRL")...');
+        const listino22Data = await requestGiobby('/pricelists/22', 'GET', null, {});
+        listino22Rows = listino22Data.pricelist?.rows || [];
+        console.log(`[Netlify Sync] Ricevute ${listino22Rows.length} righe per Listino 22.`);
+      } catch (err) {
+        console.error('[Netlify Sync Warning] Impossibile scaricare Listino 22:', err.message || err);
       }
 
-      const newProd = {
-        CodiceArticolo: sku,
-        CodiceSecondario: "",
-        Descrizione: desc,
-        Categoria: cat || "Generale",
-        Ubicazione: loc || "MB",
-        GiacenzaTeorica: parseFloat(qty) || 0,
-        _giobbyId: null,
-        ScortaMinima: 0,
-        Barcode: "",
-        SalesPrice: parseFloat(salesPrice) || 0,
-        PurchasePrice: parseFloat(salesPrice) || 0,
-        UM: "PZ",
-        StockEnabled: true
-      };
-
-      sessionData.products.push(newProd);
-      if (qty > 0) {
-        sessionData.counts[sku] = parseFloat(qty);
+      try {
+        console.log('[Netlify Sync] Download Listino 28 ("Prova Giobby")...');
+        const listino28Data = await requestGiobby('/pricelists/28', 'GET', null, {});
+        listino28Rows = listino28Data.pricelist?.rows || [];
+        console.log(`[Netlify Sync] Ricevute ${listino28Rows.length} righe per Listino 28.`);
+      } catch (err) {
+        console.error('[Netlify Sync Warning] Impossibile scaricare Listino 28:', err.message || err);
       }
 
-      fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf8');
-      return new Response(JSON.stringify({ success: true, product: newProd }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
+      // Build pricelist maps: idMaterial -> salesPrice
+      const priceMap10 = {};
+      listino10Rows.forEach(r => { if (r.id) priceMap10[r.id] = parseFloat(r.salesPrice ?? 0); });
 
-    // 8.c. ROUTE: DELETE /api/products (Eliminazione prodotto dalla sessione attiva)
-    if (pathname === '/api/products' && req.method === 'DELETE') {
-      const sku = url.searchParams.get('id');
-      if (!sku) {
-        return new Response(JSON.stringify({ error: 'ID/SKU prodotto mancante.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+      const priceMap22 = {};
+      listino22Rows.forEach(r => { if (r.id) priceMap22[r.id] = parseFloat(r.salesPrice ?? 0); });
+
+      const priceMap28 = {};
+      listino28Rows.forEach(r => { if (r.id) priceMap28[r.id] = parseFloat(r.salesPrice ?? 0); });
+
+      // 2.b Fetch all stocks availability from Giobby
+      console.log('[Netlify Sync] Download disponibilità magazzini da Giobby...');
+      let stockPage = 1;
+      let stockLimit = 500;
+      let allStocks = [];
+      let stockHasMore = true;
+      let stockOffset = 0;
+
+      while (stockHasMore) {
+        console.log(`[Netlify Sync] Download disponibilità magazzini pagina ${stockPage}...`);
+        const stockParams = { limit: stockLimit, offset: stockOffset };
+        const stockData = await requestGiobby('/stocks/avaibility', 'GET', null, stockParams);
+        const stocksList = Array.isArray(stockData) ? stockData : (stockData.stocks || stockData.stocksAvailability || stockData.availability || stockData.data || []);
+        console.log(`[Netlify Sync] Ricevute ${stocksList.length} righe di disponibilità per la pagina ${stockPage}.`);
+        
+        if (stocksList.length === 0) {
+          stockHasMore = false;
+        } else {
+          allStocks = allStocks.concat(stocksList);
+          if (stocksList.length < stockLimit) {
+            stockHasMore = false;
+          } else {
+            stockOffset += stockLimit;
+            stockPage++;
+          }
+        }
       }
 
-      let activeSessionTxtPath = path.join(process.cwd(), '..', 'Inventario', 'active_session.txt');
-      if (!fs.existsSync(activeSessionTxtPath)) {
-        activeSessionTxtPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../Inventario/active_session.txt');
-      }
-      if (process.platform === 'win32' && activeSessionTxtPath.startsWith('\\')) {
-        activeSessionTxtPath = activeSessionTxtPath.substring(1);
-      }
-
-      if (!fs.existsSync(activeSessionTxtPath)) {
-        return new Response(JSON.stringify({ error: 'Nessuna sessione attiva configurata in Inventario.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      const sessionName = fs.readFileSync(activeSessionTxtPath, 'utf8').trim();
-      const sessionFilePath = path.join(path.dirname(activeSessionTxtPath), `session_${sessionName}.json`);
-      if (!fs.existsSync(sessionFilePath)) {
-        return new Response(JSON.stringify({ error: 'File sessione attiva non trovato.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
-      const initialLength = sessionData.products.length;
-      sessionData.products = sessionData.products.filter(p => String(p.CodiceArticolo).toLowerCase() !== sku.toLowerCase());
-
-      if (sessionData.products.length === initialLength) {
-        return new Response(JSON.stringify({ error: 'Prodotto non trovato nell\'inventario.' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      if (sessionData.counts) {
-        delete sessionData.counts[sku];
-        Object.keys(sessionData.counts).forEach(k => {
-          if (k.toLowerCase() === sku.toLowerCase()) delete sessionData.counts[k];
-        });
-      }
-
-      fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf8');
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
-    // 8.d. ROUTE: GET /api/products/reorder (Ottieni elenco prodotti in esaurimento o da ordinare)
-    if (pathname === '/api/products/reorder' && req.method === 'GET') {
-      const cache = readProductsCache();
-      const products = cache.products || [];
-      const activeProducts = filterActiveProducts(products);
-      const reorderList = [];
-
-      activeProducts.forEach(p => {
-        const minStock = p.minStock || 0;
-        const whCode = p.defaultStorage || 'MB';
-        const currentQty = p.stocks ? (p.stocks[whCode] || 0) : 0;
-        const isManual = !!p.ordina;
-
-        if ((minStock > 0 && currentQty < minStock) || isManual) {
-          const deficit = isManual ? Math.max(0, minStock - currentQty) || 1 : minStock - currentQty;
-          reorderList.push({
-            id: p.id,
-            barcode: p.barcode || '',
-            description: p.description,
-            category: p.materialGroupDesc || 'Generale',
-            storage: whCode,
-            currentQty: currentQty,
-            minStock: minStock,
-            deficit: deficit,
-            isManual: isManual
-          });
+      // Build stock lookup map: idMaterial -> { idStorage -> quantity }
+      const stockLookup = {};
+      allStocks.forEach(item => {
+        const matId = item.idMaterial;
+        const storageId = item.idStorage;
+        const qty = parseFloat(item.quantity ?? 0);
+        if (matId) {
+          if (!stockLookup[matId]) {
+            stockLookup[matId] = {};
+          }
+          if (storageId !== undefined) {
+            stockLookup[matId][storageId] = qty;
+          }
         }
       });
 
-      const excelMode = url.searchParams.get('excel') === 'true';
-      if (excelMode) {
-        let csv = '\uFEFF';
-        csv += 'Codice Articolo;Codice a Barre;Descrizione;Categoria;Magazzino;Giacenza Attuale;Scorta Minima;Deficit (Quantità da ordinare);Tipo Riordino\n';
-        reorderList.forEach(item => {
-          const tipo = item.isManual ? 'Manuale' : 'Sotto Scorta';
-          csv += `"${item.id}";"${item.barcode}";"${item.description}";"${item.category}";"${item.storage}";${item.currentQty};${item.minStock};${item.deficit};"${tipo}"\n`;
-        });
+      let page = 1;
+      let limit = 200;
+      let allProducts = [];
+      let hasMore = true;
+
+      while (hasMore) {
+        console.log(`[Netlify Sync] Download pagina ${page}...`);
+        const params = { limit, offset: (page - 1) * limit, salesEnabled: true };
+        const data = await requestGiobby('/products', 'GET', null, params);
+        const products = data.products || [];
         
-        return new Response(csv, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/csv; charset=utf-8',
-            'Content-Disposition': `attachment; filename=lista_riordino_${new Date().toISOString().slice(0, 10)}.csv`
+        console.log(`[Netlify Sync] Ricevuti ${products.length} prodotti per la pagina ${page}.`);
+        if (products.length === 0) {
+          hasMore = false;
+        } else {
+          allProducts = allProducts.concat(products);
+          page++;
+          if (products.length < limit) {
+            hasMore = false;
           }
-        });
-      } else {
-        return new Response(JSON.stringify(reorderList), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
-    }
-
-    // 8.e. ROUTE: POST /api/products/reorder-manual (Cambia stato flag manuale Ordina)
-    if (pathname === '/api/products/reorder-manual' && req.method === 'POST') {
-      const { sku, ordina } = await req.json();
-
-      if (!sku) {
-        return new Response(JSON.stringify({ error: 'SKU prodotto obbligatorio.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
+        }
       }
 
-      let activeSessionTxtPath = path.join(process.cwd(), '..', 'Inventario', 'active_session.txt');
-      if (!fs.existsSync(activeSessionTxtPath)) {
-        activeSessionTxtPath = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../Inventario/active_session.txt');
-      }
-      if (process.platform === 'win32' && activeSessionTxtPath.startsWith('\\')) {
-        activeSessionTxtPath = activeSessionTxtPath.substring(1);
-      }
+      console.log(`[Netlify Sync] Totale prodotti scaricati: ${allProducts.length}. Elaborazione giacenze...`);
 
-      if (!fs.existsSync(activeSessionTxtPath)) {
-        return new Response(JSON.stringify({ error: 'Nessuna sessione attiva configurata in Inventario.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+      // 3. Process products to add stocks object
+      const processedProducts = allProducts.map(p => {
+        const defaultWh = p.defaultStorage || 'MB';
+        
+        // Initialize stocks dictionary for all 10 warehouses
+        const stocks = {
+          "MB": 0,
+          "CCIW": 0,
+          "PR 26": 0,
+          "CATALOGO": 0,
+          "IW": 0,
+          "MBB": 0,
+          "MGR": 0,
+          "MP": 0,
+          "MPR": 0,
+          "SANTINI": 0
+        };
+        
+        const productStocks = stockLookup[p.id];
+        if (productStocks) {
+          for (const wh in stocks) {
+            if (productStocks.hasOwnProperty(wh)) {
+              stocks[wh] = productStocks[wh];
+            }
+          }
+        } else {
+          // Fallback to local giacenze_prodotti.json only if product was not in Giobby stocks list
+          const totalQty = giacenze[p.id] ?? 0;
+          if (stocks.hasOwnProperty(defaultWh)) {
+            stocks[defaultWh] = totalQty;
+          } else {
+            stocks["MB"] = totalQty; // Fallback to MB
+          }
+        }
 
-      const sessionName = fs.readFileSync(activeSessionTxtPath, 'utf8').trim();
-      const sessionFilePath = path.join(path.dirname(activeSessionTxtPath), `session_${sessionName}.json`);
-      if (!fs.existsSync(sessionFilePath)) {
-        return new Response(JSON.stringify({ error: 'File sessione attiva non trovato.' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+        // Calcolo prezzi derivati
+        const p10 = priceMap10[p.id] !== undefined ? priceMap10[p.id] : null;
+        const p22 = priceMap22[p.id] !== undefined ? priceMap22[p.id] : null;
+        const p28 = priceMap28[p.id] !== undefined ? priceMap28[p.id] : null;
 
-      const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
-      const prod = sessionData.products.find(p => String(p.CodiceArticolo).toLowerCase() === String(sku).toLowerCase());
-      if (!prod) {
-        return new Response(JSON.stringify({ error: 'Prodotto non trovato nell\'inventario attivo.' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      }
+        // 1. Privati: Listino 10 * 1.35, fallback Listino 28 * 1.35
+        let pricePrivati = null;
+        if (p10 !== null) {
+          pricePrivati = p10 * 1.35;
+        } else if (p28 !== null) {
+          pricePrivati = p28 * 1.35;
+        }
 
-      prod.Ordina = !!ordina;
-      fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf8');
-      return new Response(JSON.stringify({ success: true, sku, ordina: prod.Ordina }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' }
+        // 2. Posatori: Listino 10 * 1.15, fallback Listino 22 * 1.15, fallback Listino 28 * 1.15
+        let pricePosatori = null;
+        if (p10 !== null) {
+          pricePosatori = p10 * 1.15;
+        } else if (p22 !== null) {
+          pricePosatori = p22 * 1.15;
+        } else if (p28 !== null) {
+          pricePosatori = p28 * 1.15;
+        }
+
+        // 3. Bologna: Listino 22, fallback Listino 28
+        let priceBologna = null;
+        if (p22 !== null) {
+          priceBologna = p22;
+        } else if (p28 !== null) {
+          priceBologna = p28;
+        }
+
+        return {
+          id: p.id,
+          barcode: p.barcode || '',
+          description: p.description || p.description_IT || '',
+          idMaterialGroup: p.idMaterialGroup,
+          materialGroupDesc: p.materialGroupDesc,
+          defaultStorage: defaultWh,
+          stocks: stocks,
+          idVat: p.idVat || '22',
+          localObsolete: localObsoleteSet.has(p.id),
+          boxQty: p.boxQty || 0,
+          um: p.um || '',
+          prices: {
+            privati: pricePrivati !== null ? parseFloat(pricePrivati.toFixed(4)) : null,
+            posatori: pricePosatori !== null ? parseFloat(pricePosatori.toFixed(4)) : null,
+            bologna: priceBologna !== null ? parseFloat(priceBologna.toFixed(4)) : null
+          }
+        };
       });
-    }
 
-    // 9. ROUTE: POST /api/products/sync (Synchronize catalog - serverless fallback returning informative error)
-    if (pathname === '/api/products/sync' && req.method === 'POST') {
+      console.log(`[Netlify Sync] Sincronizzazione completata! Invio di ${processedProducts.length} prodotti.`);
       return new Response(JSON.stringify({
-        error: "La sincronizzazione completa non è supportata online su Netlify per via del limite di tempo di 10 secondi delle funzioni serverless. Esegui la sincronizzazione localmente sul PC (usando 'avvia_locale.bat' o 'node server.js') e poi carica o pubblica la cartella aggiornata (che contiene il file 'prodotti_cache.json') su Netlify. Puoi comunque aggiornare i singoli articoli cliccando sull'icona 🔄 accanto ad essi."
+        success: true,
+        count: processedProducts.length,
+        lastSync: new Date().toISOString(),
+        products: processedProducts
       }), {
-        status: 400,
+        status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
     }
